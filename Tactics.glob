@@ -1,0 +1,6 @@
+DIGEST 82e5006279df2ff02c542b2e0591f4db
+FTactics
+R25:30 Coq.Strings.String <> <> lib
+R258:260 Coq.Init.Logic <> :type_scope:x_'='_x not
+R1721:1722 Coq.Init.Logic <> eq ind
+R1721:1722 Coq.Init.Logic <> eq ind
