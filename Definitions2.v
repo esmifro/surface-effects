@@ -822,27 +822,27 @@ Inductive BackTriangle2 : Expr -> Expr -> Prop :=
  | Ref_Read_Abs  : forall (e eff : Expr) (w : rgn2_in_exp),
                      (e ◀ eff) ->
                      (DeRef w e) ◀ (eff ⊕ (ReadAbs w))
- | Ref_Read_Conc : forall (e eff : Expr) (r : Region),
+ | Ref_Read_Conc : forall (e eff : Expr) (w : rgn2_in_exp),
                      (e ◀ eff) ->
-                     (DeRef (Rgn2_Const true false r) e) ◀ (eff ⊕ (ReadConc e))
+                     (DeRef w e) ◀ (eff ⊕ (ReadConc e))
  | Ref_Write_Abs  : forall (e1 e2 eff1 eff2 : Expr) (w : rgn2_in_exp),
                       (e1 ◀ eff1) ->
                       (e2 ◀ eff2) ->
                       (Assign w e1 e2) ◀ (eff1 ⊕ (eff2 ⊕ (WriteAbs w)))
- | Ref_Write_Conc : forall (e1 e2 eff1 eff2 : Expr) (r : Region),
+ | Ref_Write_Conc : forall (e1 e2 eff1 eff2 : Expr) (w : rgn2_in_exp),
                       (e1 ◀ eff1) ->
                       (e2 ◀ eff2) ->
-                      (Assign (Rgn2_Const true false r) e1 e2) ◀ (eff1 ⊕ (eff2 ⊕ (WriteConc e1)))                                                  
+                      (Assign w e1 e2) ◀ (eff1 ⊕ (eff2 ⊕ (WriteConc e1)))                                                  
  | Top_Approx     : forall e : Expr,
                       e ◀ Top
  | Times_Concat   : forall e1 e2 eff1 eff2,
                      (e1 ◀ eff1) ->
                      (e2 ◀ eff2) ->
                      (Times e1 e2) ◀ (eff1 ⊕ eff2)
- | Minus_Concat   : forall e1 e2 eff1 eff2,
+ | Plus_Concat   : forall e1 e2 eff1 eff2,
                      (e1 ◀ eff1) ->
                      (e2 ◀ eff2) ->
-                     (Minus e1 e2) ◀ (eff1 ⊕ eff2)
+                     (Plus e1 e2) ◀ (eff1 ⊕ eff2)
  | Eq_Concat      : forall e1 e2 eff1 eff2,
                      (e1 ◀ eff1) ->
                      (e2 ◀ eff2) ->
@@ -894,11 +894,37 @@ Proof.
       * apply App_Inner_Eff; try (solve [constructor]).
         { admit. }
 Qed.
-
+ 
 Definition region := Rgn2_Const true false 0.
+Definition rho_var := Rgn2_FVar true false "r"%char.
 Definition incr ref  := Cond (Bool true)
                              (Assign region (Var ref) (DeRef region (Var ref)))
                              (Var ref). 
+
+Definition incr_abst := Lambda "r"%char (Cond (Bool true)
+                                              (Assign rho_var (Var "x"%char) (DeRef rho_var (Var "x"%char)))
+                                              (Var "x"%char)).
+
+Definition incr_app := Rgn_App incr_abst (Rgn2_Const true false 7).
+
+
+Definition incr_abst_eff_1  := ∅ ⊕ (ReadConc (Var "x"%char) ⊕ WriteConc (Var "x"%char)).
+Definition incr_abst_eff_2  := ∅ ⊕ ((∅ ⊕ (ReadConc (Var "x"%char))) ⊕ (WriteConc (Var "x"%char))).
+
+Lemma incr_abst_incr_eff_const : incr_app ◀ incr_abst_eff_2.
+Proof.
+  unfold incr_app, incr_abst_eff_1, incr_abst_eff_2.
+  apply Rgn_App_Eff.
+   apply Cond_Cond_2.
+  - apply Bool_Pure.
+  - unfold rho_var. apply Ref_Write_Conc.
+    + apply Var_Pure.
+    + apply Ref_Read_Conc.
+      * apply Var_Pure.
+  - apply Var_Pure.
+Qed.    
+
+Definition isPrime := Bool true.
 
 Definition incr_eff ref := ∅ ⊕ ((∅ ⊕ (ReadConc (Var ref))) ⊕ (WriteConc (Var ref))).
 
@@ -916,6 +942,35 @@ Proof.
       * apply Var_Pure.
   - apply Var_Pure.
 Qed.    
+
+Definition x_var := "x"%char.
+Definition f := "f"%char.
+Definition rho := "r"%char.
+
+Definition incr_body := Cond (isPrime)
+                             (Assign rho_var (Var x_var) (Plus (Const 1) (DeRef rho_var (Var x_var))))
+                             (Assign rho_var (Var x_var) (Var x_var)).
+
+Definition incr_eff_2 := ∅ ⊕ ((∅ ⊕ (∅ ⊕ (ReadConc (Var x_var)))) ⊕ (WriteConc (Var x_var))).
+
+Definition incr_abs := Lambda rho (Mu f x_var (incr_body) (incr_eff_2)). 
+
+Lemma incr_incr_eff_tfp : incr_body ◀ incr_eff_2.
+Proof.
+  unfold incr_body, incr_eff_2.
+  apply Cond_Cond_2.
+  - apply Bool_Pure.
+  - apply Ref_Write_Conc.
+    + apply Var_Pure.
+    + apply Plus_Concat.
+      * apply Num_Pure.
+      * apply Ref_Read_Conc.
+        { apply Var_Pure. }
+  - apply Ref_Write_Conc.
+    + apply Var_Pure.
+    + apply Var_Pure. 
+Qed. 
+
 
 
 Inductive TcRgn : (Omega * rgn2_in_exp) -> Prop :=

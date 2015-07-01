@@ -1524,9 +1524,8 @@ Proof.
   -  apply EnsembleUnionComp.
      + eapply IHExprs; eauto.
      + apply PTS_Elem; inversion H8; subst.
-       assert ( Hnil : (h, Loc (Rgn2_Const true false r1) l0, Phi_Nil) = (h', Loc (Rgn2_Const true false r0) l, aacts))
+       assert ( Hnil : (h, Loc (Rgn2_Const true false r0) l0, Phi_Nil) = (h', Loc (Rgn2_Const true false s) l, aacts))
          by (eapply DynamicDeterminism; eauto); inversion Hnil; subst.
-       inversion H11; subst.
        inversion H; subst.
        apply DAT_Read_Conc; apply In_singleton.
   -  apply PTS_Seq.
@@ -1561,7 +1560,7 @@ Proof.
      + inversion H7; subst.
        assert (Phi_Elem (DA_Write r l) ⊑ effb0).
        apply PTS_Elem; inversion H12; subst.
-       assert ( HD : (heap', Loc (Rgn2_Const true false r0) l, aacts) =  (h, Loc (Rgn2_Const true false r1) l0, Phi_Nil))
+       assert ( HD : (heap', Loc (Rgn2_Const true false s) l, aacts) =  (h, Loc (Rgn2_Const true false r0) l0, Phi_Nil))
          by (eapply DynamicDeterminism; eauto). inversion HD; subst.
        inversion H; subst.
        apply DAT_Write_Conc; apply In_singleton.
