@@ -18,6 +18,7 @@ Require Import Ascii.
 Require Import Keys.
 Require Import Tactics.
 Require Export Nameless2.
+Require Export TypeLemmas.
 
 
 Inductive Expr :=
@@ -201,122 +202,12 @@ Inductive Conflictness : Theta -> Theta -> Prop :=
  | C_Theta  : forall theta1 theta2,
                  Conflict_Sets_Computed_Actions theta1 theta2  -> Conflictness (Some theta1) (Some theta2).                                                                                                               
 
-Reserved Notation "phi '⊑' theta" (at level 50, left associativity).
-Inductive Phi_Theta_Soundness : Phi -> Theta -> Prop :=
-| PTS_Nil :
-    forall theta, (Phi_Nil) ⊑ theta
-| PTS_Elem : forall da theta,
-      DA_in_Theta da theta ->
-      (Phi_Elem da) ⊑ theta
-| PTS_Seq : forall phi1 phi2 theta,
-      phi1 ⊑ theta ->
-      phi2 ⊑ theta ->
-      Phi_Seq phi1 phi2 ⊑ theta
-| PTS_Par : forall phi1 phi2 theta,
-      phi1 ⊑ theta ->
-      phi2 ⊑ theta ->
-      Phi_Par phi1 phi2 ⊑ theta
-where "phi '⊑' theta" := (Phi_Theta_Soundness phi theta) : type_scope.
 
-Axiom Phi_Seq_Nil_L : forall phi, Phi_Seq Phi_Nil phi = phi.
-Axiom Phi_Seq_Nil_R : forall phi, Phi_Seq phi Phi_Nil = phi.
-Axiom Phi_Par_Nil_R : forall phi, Phi_Par Phi_Nil phi = phi.
-Axiom Phi_Par_Nil_L : forall phi, Phi_Par Phi_Nil phi = phi.
-
-Lemma PhiInThetaTop:
-  forall phi, phi ⊑ Theta_Top.
-Proof.  
-  induction phi; intros; econstructor; try assumption; apply DAT_Top.
-Qed.
-
-Lemma EmptyIsNil:
-  forall phi, phi ⊑ Theta_Empty -> phi = Phi_Nil.
-Proof.
-  induction phi; intros.
-  reflexivity.
-  inversion H; subst; inversion H1; subst; try (solve [contradiction]).
-  - admit.
-  - admit.  
-  - assert ( H1 : phi1 = Phi_Nil ) by (apply IHphi1; inversion H; assumption); rewrite H1.
-    assert ( H2 : phi2 = Phi_Nil ) by (apply IHphi2; inversion H; assumption); rewrite H2.
-    rewrite Phi_Par_Nil_R. reflexivity.
-  - assert ( H1 : phi1 = Phi_Nil ) by (apply IHphi1; inversion H; assumption); rewrite H1.
-    assert ( H2 : phi2 = Phi_Nil ) by (apply IHphi2; inversion H; assumption); rewrite H2.
-    rewrite Phi_Seq_Nil_R. reflexivity.  
-Qed.
-
-
-Lemma EmptyInAnyTheta:
-  forall phi theta, phi ⊑ Theta_Empty -> phi ⊑ theta .
-Proof.  
-  induction phi; intros; try (solve [econstructor]).
-  - inversion H; subst; inversion H1; subst; inversion H3; subst;
-    try (solve [assert (set_union acts a = empty_set -> acts = empty_set) by admit; apply H2 in H0; subst; inversion H5]);
-    try (solve [admit]).
-  - inversion H; subst. apply EmptyIsNil in H2. apply EmptyIsNil in H4. subst.
-    apply PTS_Par. apply IHphi1. apply PTS_Nil.  apply IHphi1. apply PTS_Nil.
-  - inversion H; subst. apply EmptyIsNil in H2. apply EmptyIsNil in H4. subst.
-    apply PTS_Seq. apply IHphi1. apply PTS_Nil.  apply IHphi1. apply PTS_Nil. 
- Qed.
-
-Lemma EnsembleUnionSym :
-  forall (phi : Phi) (theta theta' : Theta),
-    phi ⊑ theta -> phi ⊑ (Union_Theta theta theta') /\ phi ⊑ (Union_Theta theta' theta).
-Proof.
-  intros phi theta theta' H.
-  generalize dependent theta'.
-  induction H; intros theta'.
-  - split; [apply PTS_Nil | apply PTS_Nil]. 
-  - destruct theta as [acts|]; destruct theta' as [acts'|]; intuition; simpl;
-    try (apply PTS_Elem; inversion H; subst; apply DAT_Top). 
-    + econstructor. apply DAT_intror. assumption.
-    + econstructor. apply DAT_introl. assumption.
-  - destruct theta as [acts|]; destruct theta' as [acts'|]; intuition;
-    (apply PTS_Seq; [apply IHPhi_Theta_Soundness1 | apply IHPhi_Theta_Soundness2]).
-  - split; destruct theta as [acts|]; destruct theta' as [acts'|]; intuition;
-    (apply PTS_Par; [apply IHPhi_Theta_Soundness1 | apply IHPhi_Theta_Soundness2]).  
-Qed.
-
-
-Lemma EnsembleUnionComp :
-  forall (phi1 phi2 : Phi) (theta1 theta2 : Theta),
-    phi1 ⊑ theta1 -> phi2 ⊑ theta2 -> Phi_Seq phi1  phi2 ⊑ (Union_Theta theta1 theta2).
-Proof. 
-  intros phi1 phi2 theta1 theta2 H1 H2.
-  econstructor.
-  - apply EnsembleUnionSym with (theta' := theta2) in H1. intuition. 
-  - apply EnsembleUnionSym with (theta' := theta1) in H2. intuition.
-Qed.
-
-
-Lemma Theta_introl: 
-  forall phi theta1 theta2, phi ⊑ theta1 -> phi ⊑ Union_Theta theta1 theta2.
-Proof.
-  induction phi; intros; try (solve [econstructor]).
-  - inversion H; subst; inversion H1; subst; simpl;
-    try (solve [assumption |
-                induction theta2; [econstructor; constructor; now apply Union_introl | econstructor; constructor] |
-                induction theta2; [econstructor; now apply DAT_intror | econstructor; constructor ]] ).
-  - apply PTS_Par. apply IHphi1. now inversion H. apply IHphi2. now inversion H.
-  - apply PTS_Seq. apply IHphi1. now inversion H. apply IHphi2. now inversion H.
-Qed.    
-
-Lemma Theta_intror:
-  forall phi theta1 theta2, phi ⊑ theta1 -> phi ⊑ Union_Theta theta2 theta1.
-Proof.
-  induction phi; intros; try (solve [econstructor]).
-  - inversion H; subst; inversion H1; subst; simpl;
-    try (solve [assumption |
-                induction theta2; [econstructor; constructor; now apply Union_intror | econstructor; constructor] |
-                induction theta2; [econstructor; now apply DAT_introl | econstructor; constructor ]] ).
-  - apply PTS_Par. apply IHphi1. now inversion H. apply IHphi2. now inversion H.
-  - apply PTS_Seq. apply IHphi1. now inversion H. apply IHphi2. now inversion H.
-Qed.
 
 
 Module E := FMapAVL.Make (AsciiVars).
 Module H := FMapAVL.Make (RegionVars).
-Module R := FMapAVL.Make (AsciiVars).
+
 
 Module Raw := E.Raw.
  
@@ -523,264 +414,17 @@ Definition update_rec_T (f: ascii * tau) (x: ascii * tau) m :=
 Definition find_ST (k: ST.key) (m: Sigma) : option tau := ST.find k m.
 Definition update_ST (p: ST.key * tau) m := ST.add (fst p) (snd p) m.
 
-
-(* commutativity of f, paired key *)
-Lemma fold_subst:
-  forall A,
-  forall (f : A -> (R.key * Region) -> A),
-  forall l1 x' l2 b,
-    (forall y b0,
-       In y l1 ->
-       f (f b0 y) x' = f (f b0 x') y) ->
-    List.fold_left f (l1 ++ x'::l2) b = fold_left f (l1 ++ l2) (f b x'). 
-Proof.  
-  intros f. 
-  induction l1; intros x' l2 b H. 
-  - simpl. reflexivity.
-  - simpl. rewrite IHl1.
-    + rewrite H.
-      * reflexivity.
-      * apply in_eq.
-    + intros y b0 In_y. apply H. apply in_cons. apply In_y.
-Qed.
-
-Lemma baz:
-  forall (rho : R.t Region),
-  forall (k': R.key) (v': Region),
-    ~ R.In k' rho ->
-    exists elems1 elems2,
-      elems1 ++ (k',v')::elems2 = R.elements (R.add k' v' rho) /\
-      elems1 ++ elems2 = R.elements rho.
-Proof.
-  (* unfold R.elements. unfold R.Raw.elements. unfold R.Raw.elements_aux. *)
-  destruct rho. induction this; intros k' v' H.
-  - exists nil. exists nil. intuition.
-  - simpl. destruct (AsciiVars.compare k' k).
-    + admit.
-    + inversion e0; subst.
-      contradict H. unfold R.In, R.Raw.In0. simpl. eauto.
-    + admit.
-Qed.
-
-(* commutativity of f, unpaired key *)
-Lemma fold_add_type:
-  forall A,
-  forall (f : R.key -> Region -> A -> A),
-  forall (rho : R.t Region),
-  forall (k': R.key) (v': Region) (b: A),
-    ~ R.In k' rho ->
-    (forall k v b0,
-       R.MapsTo k v rho ->
-       f k' v' (f k v b0) = f k v (f k' v' b0)) ->
-    R.fold f (R.add k' v' rho) b = R.fold f rho (f k' v' b).
-Proof.
-  intros A f rho k' v' b H' H.
-  repeat (rewrite R.fold_1). 
-  destruct (baz rho k' v' H') as [elems1 [elems2 [H1 H2]]]. 
-  rewrite <- H1.
-  rewrite <- H2.
-  apply fold_subst.
-  intros [k1 v1] b0 In_k1_v1. simpl. apply H.
-  apply R.elements_2.
-  apply In_InA.
-  - repeat constructor.
-    + destruct H0. auto.
-    + destruct H0; auto.
-    + destruct H0; rewrite H0. destruct H3. auto.
-    + destruct H0; rewrite H4. destruct H3. auto.
-  - rewrite <- H2.
-    apply List.in_or_app. left. apply In_k1_v1.
-Qed.
-
-
-
-Module RMapP := FMapFacts.Facts R.
-Module RMapProp := FMapFacts.Properties R.
-
-
-Lemma subst_type_rgn_comm: forall r k1 k2 v1 v2, 
-   not_set_elem (free_rgn_vars_in_rgn2 r) k1 ->
-   not_set_elem (free_rgn_vars_in_rgn2 r) k2 ->
-   subst_rgn k1 (Rgn2_Const true false v1) (subst_rgn k2 (Rgn2_Const true false v2) r) =
-   subst_rgn k2 (Rgn2_Const true false v2) (subst_rgn k1 (Rgn2_Const true false v1) r).
-Proof.
-  intros r k1 k2 v1 v2 Hr1 Hr2.
-  unfold subst_rgn. unfold rgn2_in_typ in r.
-  dependent induction r.
-  - reflexivity.
-  - destruct (AsciiVars.eq_dec k2 n).
-    + inversion e; subst. 
-      unfold not_set_elem, Complement in Hr2. 
-      unfold not, Ensembles.In in Hr2.
-      contradict Hr2. simpl. apply In_singleton.
-    + simpl. destruct (AsciiVars.eq_dec k1 n).
-      * reflexivity.
-      * destruct (AsciiVars.eq_dec k2 n); unfold AsciiVars.eq in *. 
-        contradiction. reflexivity.  
-  - reflexivity.
-Qed.
-
-Lemma subst_type_rgn_comm_2: forall r k1 k2 v1 v2,
-                               k1 <> k2 ->
-                               subst_rgn k1 (Rgn2_Const true false v1) (subst_rgn k2 (Rgn2_Const true false v2) r) =
-                               subst_rgn k2 (Rgn2_Const true false v2) (subst_rgn k1 (Rgn2_Const true false v1) r).
-Proof.
-  intros r k1 k2 v1 v2 H.
-  unfold rgn2_in_typ in r.
-  dependent induction r; try (solve [simpl; reflexivity ]).
-  unfold subst_rgn. destruct (AsciiVars.eq_dec k1 k2).
-  - inversion e. contradiction.
-  - simpl. destruct (AsciiVars.eq_dec k2 n).
-    + assert (~ AsciiVars.eq k1 n) by (inversion e; congruence).
-      unfold  AsciiVars.eq in *.
-      destruct (AsciiVars.eq_dec k1 n).
-      * now absurd (k1=n).
-      * inversion e; subst; now destruct (AsciiVars.eq_dec n n).
-    + destruct (AsciiVars.eq_dec k1 n); [reflexivity |].
-      now destruct (AsciiVars.eq_dec k2 n).
-Qed.      
-
-Lemma subst_type_sa_comm_2: forall sa k1 k2 v1 v2,
-                               k1 <> k2 ->
-                               subst_sa k1 (Rgn2_Const true false v1) (subst_sa k2 (Rgn2_Const true false v2) sa) =
-                               subst_sa k2 (Rgn2_Const true false v2) (subst_sa k1 (Rgn2_Const true false v1) sa).
-Proof.
-  intros sa k1 k2 v1 v2 H.
-  destruct sa; simpl; apply f_equal; apply subst_type_rgn_comm_2; auto.
-Qed.
-
-Lemma subst_type_eps_comm_2 : forall (k1 : R.key) (v1 : Region) (k2 : R.key) (v2 : Region) (e : Epsilon),
-                                k1 <> k2 ->
-                                subst_eps k1 (Rgn2_Const true false v1) (subst_eps k2 (Rgn2_Const true false v2) e) =
-                                subst_eps k2 (Rgn2_Const true false v2) (subst_eps k1 (Rgn2_Const true false v1) e).
-Proof.
-  intros k1 v1 k2 v2 e H. unfold subst_eps.
-  apply Extensionality_Ensembles; unfold Same_set, Included.
-  split; intros; unfold Ensembles.In in *; destruct H0 as [x' [[x'' [H1 H2]] H3]];
-  subst; repeat (eexists || split || subst); eauto using subst_type_sa_comm_2.
-Qed.
-
-Definition subst_in_type := fun x r ty => subst_type x (Rgn2_Const true false r) ty.
-
-Definition subst_in_eff := fun x r eff => subst_eps x (Rgn2_Const true false r) eff.
-
-Definition subst_in_sa := fun x r sa => subst_sa x (Rgn2_Const true false r) sa.
-
-Definition subst_in_rgn := fun x r rgn => subst_rgn x (Rgn2_Const true false r) rgn.
-
-Definition subst_rho := R.fold subst_in_type.
-
-Definition fold_subst_rgn := R.fold (fun x r rgn => subst_rgn x (Rgn2_Const true false r) rgn).
-
-Definition fold_subst_sa rho sa:=
-  match sa with
-    | SA2_Alloc rgn => SA2_Alloc (fold_subst_rgn rho rgn)
-    | SA2_Read rgn => SA2_Read (fold_subst_rgn rho rgn)
-    | SA2_Write rgn => SA2_Write (fold_subst_rgn rho rgn)
-  end.
-
-Definition fold_subst_eps rho eps :=
-  fun sa => exists sa', eps sa' /\ fold_subst_sa rho sa' = sa.
-
-Lemma subst_type_type_comm_2 : forall (k1 : R.key) (v1 : Region) (k2 : R.key) (v2 : Region) (b : tau),
-                          k1 <> k2 -> 
-                          subst_in_type k1 v1 (subst_in_type k2 v2 b) = subst_in_type k2 v2 (subst_in_type k1 v1 b).
-Proof.
-  intros k1 v1 k2 v2 b H.
-  unfold subst_in_type.
-  induction b; simpl; try (solve [simpl; reflexivity ]).
-  - f_equal; [ | apply IHb].
-    now apply  subst_type_rgn_comm_2.
-  - f_equal; [ apply IHb1 | |  apply IHb2 | |  apply IHb3]; eauto using subst_type_eps_comm_2.
-  - f_equal; [ | apply IHb]; eauto using subst_type_eps_comm_2.
-Qed.
-
-Lemma subst_add_comm :
-  forall k v rho ,
-    ~ R.In (elt:=Region) k rho ->
-    forall ty, 
-      subst_rho (R.add k v rho) ty = subst_rho rho (subst_in_type k v ty). 
-Proof.
-  intros k v rho H ty.
-  (*unfold subst_rho, subst_in_type.*)
-  apply fold_add_type.  
-  - assumption.
-  - intros k0 v0 b0 H'.
-    rewrite subst_type_type_comm_2.
-    + reflexivity.
-    + intro; subst.
-      destruct H.
-      apply RMapProp.F.elements_in_iff.
-      exists v0.
-      apply RMapProp.F.elements_mapsto_iff.
-      assumption.
-Qed.
-
-Lemma subst_add_comm_rgn :
-  forall k v rho ,
-    ~ R.In (elt:=Region) k rho ->
-    forall rgn, 
-      fold_subst_rgn (R.add k v rho) rgn = fold_subst_rgn rho (subst_in_rgn k v rgn).
-Proof.
-  intros k v rho H rgn.
-   apply fold_add_type. 
-   - assumption.
-   - intros k0 v0 b0 H'.
-     rewrite subst_type_rgn_comm_2.
-     + reflexivity.
-     + intro; subst.
-       destruct H.
-       apply RMapProp.F.elements_in_iff.
-       exists v0.
-       apply RMapProp.F.elements_mapsto_iff.
-       assumption.
-Qed.
-
-Lemma subst_add_comm_sa :
-  forall k v rho ,
-    ~ R.In (elt:=Region) k rho ->
-    forall sa, 
-      fold_subst_sa (R.add k v rho) sa = fold_subst_sa rho (subst_in_sa k v sa).
-Proof.
-  intros k v rho H sa.
-  unfold fold_subst_sa.
-  induction sa; simpl; f_equal; apply subst_add_comm_rgn; assumption.
-Qed.
-
-Lemma subst_add_comm_eff :
-  forall k v rho ,
-    ~ R.In (elt:=Region) k rho ->
-    forall eff, 
-      fold_subst_eps (R.add k v rho) eff = fold_subst_eps rho (subst_in_eff k v eff). 
-Proof.
-  intros k v rho H eff. unfold fold_subst_eps.
-  apply Extensionality_Ensembles; unfold Same_set, Included. 
-  intuition; unfold Ensembles.In in *. 
-  - destruct H0 as [sa [H1 H2]].
-    exists (subst_in_sa k v sa).
-    rewrite <- subst_add_comm_sa; eauto.
-    intuition.
-    unfold subst_in_eff, subst_in_sa.
-    unfold subst_eps, subst_sa.
-    exists sa. intuition.
-  - destruct H0 as [sa [H1 H2]].
-    unfold subst_in_eff, subst_eps in H1.
-    destruct H1 as [sa' [H3 H4]]. subst.
-    exists sa'. rewrite subst_add_comm_sa; eauto.
-Qed.
-
-
 Notation "'∅'" := (Empty)  (at level 60).
 Notation "'⊤'" := (Top) (at level 60).
 Notation "a '⊕' b" := (Concat a b) (at level 60).
 
-Fixpoint unroll (e : Expr) : Expr :=
-  match e with
-    | Cond e et ef => Cond (unroll e) (unroll et) (unroll ef)
-    | Times e1 e2 => Times (unroll e1) (unroll e2)                          
-    | Mu_App (Var f) e => e                          
-    | e => e                       
-  end  .
+
+Inductive TcRgn : (Omega * rgn2_in_exp) -> Prop :=
+  | TC_Rgn_Const : forall rgns s,
+                      TcRgn (rgns, Rgn2_Const true false s)
+  | TC_Rgn_Var   : forall rgns r,
+                      set_elem rgns r ->
+                      TcRgn (rgns, Rgn2_FVar true false r).      
 
 
 Reserved Notation "ec '◀' ee" (at level 50, left associativity).
@@ -854,134 +498,7 @@ Inductive BackTriangle2 : Expr -> Expr -> Prop :=
                      (Cond e et ef) ◀ eff                               
 where "ec '◀' ee" := (BackTriangle2 ec ee) : type_scope.
 
-Definition Fact_Comp_Body f x : Expr
-  := Cond (Eq (Var x) (Const 0))
-          (Const 1)
-          (Times (Var x) (Mu_App (Var f) (Minus (Var x) (Const 1)))).
-   
-Definition Fact_Eff_Body x : Expr
-  := Cond (Eq (Var x) (Const 0))
-          (Empty)
-          (Empty ⊕ Empty). 
-
-
-Definition Var_Top := forall var, Var var ◀ Top.
-Definition Const_Top := forall nat, Const nat ◀ Top.
-Definition Const_Pure := forall nat eff, Const nat ◀ eff.
-Definition Capp_Eapp := forall f x, (Mu_App (Var f) (Minus (Var x) (Const 1))) ◀ (Eff_App (Var f) (Minus (Var x) (Const 1))).
-Definition Comp_Eff := forall f x, (Fact_Comp_Body f x) ◀ (Fact_Eff_Body x).
-
-Definition Comp_Eff_App := forall f x, Mu_App (Mu f x (Fact_Comp_Body f x) (Fact_Eff_Body x)) (Const 1) ◀ (Fact_Eff_Body x).
-
-Lemma fact_comp_eff_bad :Comp_Eff_App. 
-Proof.
-  unfold Comp_Eff_App. intros f x.
-  apply App_Inner_Eff; try (solve [constructor]).
-Qed.    
-
-Lemma fact_comp_eff_good_try : forall f x, (Fact_Comp_Body f x) ◀ (Fact_Eff_Body x).
-Proof.
-  unfold Fact_Comp_Body, Fact_Eff_Body.
-  intros f x.
-  apply Cond_Cond.
-  - admit.
-  - apply Num_Pure.
-  - apply Times_Concat.
-    + apply Var_Pure.
-    + apply App_F_Free with (x:=x) (ec:=Fact_Comp_Body f x).
-      * constructor.
-      * admit.
-      * apply App_Inner_Eff; try (solve [constructor]).
-        { admit. }
-Qed.
- 
-Definition region := Rgn2_Const true false 0.
-Definition rho_var := Rgn2_FVar true false "r"%char.
-Definition incr ref  := Cond (Bool true)
-                             (Assign region (Var ref) (DeRef region (Var ref)))
-                             (Var ref). 
-
-Definition incr_abst := Lambda "r"%char (Cond (Bool true)
-                                              (Assign rho_var (Var "x"%char) (DeRef rho_var (Var "x"%char)))
-                                              (Var "x"%char)).
-
-Definition incr_app := Rgn_App incr_abst (Rgn2_Const true false 7).
-
-
-Definition incr_abst_eff_1  := ∅ ⊕ (ReadConc (Var "x"%char) ⊕ WriteConc (Var "x"%char)).
-Definition incr_abst_eff_2  := ∅ ⊕ ((∅ ⊕ (ReadConc (Var "x"%char))) ⊕ (WriteConc (Var "x"%char))).
-
-Lemma incr_abst_incr_eff_const : incr_app ◀ incr_abst_eff_2.
-Proof.
-  unfold incr_app, incr_abst_eff_1, incr_abst_eff_2.
-  apply Rgn_App_Eff.
-   apply Cond_Cond_2.
-  - apply Bool_Pure.
-  - unfold rho_var. apply Ref_Write_Conc.
-    + apply Var_Pure.
-    + apply Ref_Read_Conc.
-      * apply Var_Pure.
-  - apply Var_Pure.
-Qed.    
-
-Definition isPrime := Bool true.
-
-Definition incr_eff ref := ∅ ⊕ ((∅ ⊕ (ReadConc (Var ref))) ⊕ (WriteConc (Var ref))).
-
-Definition incr_incr_eff ref := (incr ref) ◀ (incr_eff ref).
-
-Lemma incr_incr_eff_const : forall ref, incr_incr_eff ref.
-Proof.
-  intro.
-  unfold incr_incr_eff. unfold incr, incr_eff.
-  apply Cond_Cond_2.
-  - apply Bool_Pure.
-  - unfold region. apply Ref_Write_Conc.
-    + apply Var_Pure.
-    + apply Ref_Read_Conc.
-      * apply Var_Pure.
-  - apply Var_Pure.
-Qed.    
-
-Definition x_var := "x"%char.
-Definition f := "f"%char.
-Definition rho := "r"%char.
-
-Definition incr_body := Cond (isPrime)
-                             (Assign rho_var (Var x_var) (Plus (Const 1) (DeRef rho_var (Var x_var))))
-                             (Assign rho_var (Var x_var) (Var x_var)).
-
-Definition incr_eff_2 := ∅ ⊕ ((∅ ⊕ (∅ ⊕ (ReadConc (Var x_var)))) ⊕ (WriteConc (Var x_var))).
-
-Definition incr_abs := Lambda rho (Mu f x_var (incr_body) (incr_eff_2)). 
-
-Lemma incr_incr_eff_tfp : incr_body ◀ incr_eff_2.
-Proof.
-  unfold incr_body, incr_eff_2.
-  apply Cond_Cond_2.
-  - apply Bool_Pure.
-  - apply Ref_Write_Conc.
-    + apply Var_Pure.
-    + apply Plus_Concat.
-      * apply Num_Pure.
-      * apply Ref_Read_Conc.
-        { apply Var_Pure. }
-  - apply Ref_Write_Conc.
-    + apply Var_Pure.
-    + apply Var_Pure. 
-Qed. 
-
-
-
-Inductive TcRgn : (Omega * rgn2_in_exp) -> Prop :=
-  | TC_Rgn_Const : forall rgns s,
-                      TcRgn (rgns, Rgn2_Const true false s)
-  | TC_Rgn_Var   : forall rgns r,
-                      set_elem rgns r ->
-                      TcRgn (rgns, Rgn2_FVar true false r).      
-
-
-
+Reserved Notation "stty ';;' ctxt ';;' rgns '|-' ec '<<' ee" (at level 50, left associativity).
 Inductive TcExp : (Sigma * Gamma * Omega * Expr * tau * Epsilon) -> Prop :=
   | TC_Nat_Cnt     : forall stty ctxt rgns n,
                         TcExp (stty, ctxt, rgns, Const n, Ty2_Natural, Empty_Static_Action)
@@ -991,9 +508,8 @@ Inductive TcExp : (Sigma * Gamma * Omega * Expr * tau * Epsilon) -> Prop :=
                         find_T x ctxt = Some ty ->
                         TcExp (stty, ctxt, rgns, Var x, ty, Empty_Static_Action)                           
   | TC_Mu_Abs      : forall stty ctxt rgns f x ec ee tyx effc tyc effe,
-                        (*BackTriangle (stty, update_rec_T (f, Ty2_Arrow tyx effc tyc effe Ty2_Effect) (x, tyx) ctxt, rgns, ec, ee) ->*)
-                        (ec ◀ ee) ->
-                        (forall ec' ee', (unroll ec' ◀ ee') -> (ec' ◀ ee')) ->
+                        BackTriangle (stty, update_rec_T (f, Ty2_Arrow tyx effc tyc effe Ty2_Effect) (x, tyx) ctxt, rgns, ec, ee) ->
+                        (BackTriangle2 ec ee) ->
                         TcExp (stty, update_rec_T (f, Ty2_Arrow tyx effc tyc effe Ty2_Effect) (x, tyx) ctxt, rgns, ec, tyc, effc) ->
                         TcExp (stty, update_rec_T (f, Ty2_Arrow tyx effc tyc effe Ty2_Effect) (x, tyx) ctxt, rgns, ee, Ty2_Effect, effe) ->
                         TcExp (stty, ctxt, rgns, Mu f x ec ee, Ty2_Arrow tyx effc tyc effe Ty2_Effect, Empty_Static_Action)
@@ -1093,16 +609,7 @@ with BackTriangle : Sigma * Gamma * Omega * Expr * Expr -> Prop :=
                           TcExp (stty, ctxt, rgns, ea, ty_ea, static_ea) ->
                           BackTriangle (stty, ctxt, rgns, ef, efff) ->
                           BackTriangle (stty, ctxt, rgns, ea, effa) ->
-                          BackTriangle (stty, ctxt, rgns, Mu_App ef ea, efff ⊕ (effa ⊕ (Eff_App ef ea)))
-  | TC_App_Conc_2    : forall  stty ctxt rgns (f x  : ascii) (ec ee ea efff effa : Expr)
-                               ty_ec ty_ee ty_ea static_ec static_ee,
-                          TcExp (stty, ctxt, rgns, ec, ty_ec, static_ec) ->
-                          TcExp (stty, ctxt, rgns, ee, ty_ee, static_ee) ->
-                          TcExp (stty, ctxt, rgns, Var x, ty_ea, Empty_Static_Action) ->                          
-                          BackTriangle (stty, ctxt, rgns, ec, ee) ->
-                          BackTriangle (stty, ctxt, rgns, Var x, ∅) ->
-                          BackTriangle (stty, ctxt, rgns, Mu_App (Var f) (Var x), ee) ->
-                          BackTriangle (stty, ctxt, rgns, Mu_App (Mu f x ec ee) (Var x), ee)                                 
+                          BackTriangle (stty, ctxt, rgns, Mu_App ef ea, efff ⊕ (effa ⊕ (Eff_App ef ea)))                             
   | TC_Cond_Cond    : forall stty ctxt rgns (e et ef effe efft efff : Expr) ty_e ty_et ty_ef static_e static_et static_ef,
                           TcExp (stty, ctxt, rgns, e, ty_e, static_e) ->
                           TcExp (stty, ctxt, rgns, et, ty_et, static_et) ->
@@ -1138,7 +645,9 @@ with BackTriangle : Sigma * Gamma * Omega * Expr * Expr -> Prop :=
                           BackTriangle (stty, ctxt, rgns, Assign (Rgn2_Const true false r) e1 e2, eff2 ⊕ (WriteConc e1))
   | TC_Top_Approx    : forall stty ctxt rgns (e : Expr) ty_e static_e,
                           TcExp (stty, ctxt, rgns, e, ty_e, static_e) ->
-                          BackTriangle (stty, ctxt, rgns, e, Top).
+                          BackTriangle (stty, ctxt, rgns, e, Top)
+where "stty ';;' ctxt ';;' rgns '|-' ec '<<' ee" := (BackTriangle (stty, ctxt, rgns, ec, ee)) : type_scope.
+
 Scheme tc_exp__xind := Induction for TcExp Sort Prop
   with bt__xind := Induction for BackTriangle Sort Prop.
 Combined Scheme tc_exp__bt__xind from tc_exp__xind, bt__xind.
@@ -1315,163 +824,3 @@ Proof.
   - now cbv.
 Qed.
 
-Lemma EmptyTracePreservesHeap_1 : 
-  forall h r env e same_h v' acts, (h, r, env, e) ⇓ (same_h, v', acts) -> acts = Phi_Nil -> h = same_h.
-Proof.
-  intros h r env e same_h v' acts H Hnil.  (*destruct H as [H Hnil]. *)
-  dependent induction H; auto; inversion Hnil.
-  - eapply IHBigStep; [reflexivity | auto].
-  - eapply IHBigStep; [reflexivity | auto]. 
-Qed.
-
-Lemma ReadOnlyTracePreservesHeap_1 : 
-  forall h env rho e same_h v' acts, (h, env, rho, e) ⇓ (same_h, v', acts) -> 
-                                   ReadOnlyPhi acts -> h = same_h.
-Proof.
-  intros h env rho e same_h v' acts H.
-  dependent induction H; intros;
-  try (solve [reflexivity]).
-  - inversion H2; inversion H5; subst;
-    assert (h=fheap) by (eapply  IHBigStep1; [reflexivity | assumption]); subst;
-    assert (aheap=fheap) by (symmetry; eapply IHBigStep2; assumption); subst;
-    (eapply IHBigStep3; [reflexivity | reflexivity | assumption]).
-  - inversion H2; subst;
-    assert (h=fheap) by (eapply  IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; [reflexivity | reflexivity | assumption]). 
-  - admit.
-  - inversion H1; subst;
-    assert (h=cheap) by (eapply  IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; assumption).
-  - inversion H1; subst;
-    assert (h=cheap) by (eapply  IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; assumption).
-  - inversion H2; inversion H6.
-  - inversion H2; subst; (eapply IHBigStep; [reflexivity | assumption]).
-  - inversion H2; inversion H6.
-  - inversion H1; subst;
-    assert (h=lheap) by (eapply IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; [reflexivity | assumption]).
-  - inversion H1; subst;
-    assert (h=lheap) by (eapply IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; [reflexivity | assumption]).
-  - inversion H1; subst;
-    assert (h=lheap) by (eapply IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; [reflexivity | assumption]).
-  - inversion H1; subst;
-    assert (h=lheap) by (eapply IHBigStep1; [reflexivity | assumption]); subst;
-    (eapply IHBigStep2; [reflexivity | assumption]).
-  - eapply EmptyTracePreservesHeap_1; eauto.
-  - eapply EmptyTracePreservesHeap_1; eauto.
-Qed.    
-
-Inductive SA_DA_Soundness : StaticAction -> DynamicAction -> Prop :=
-| SA_DA_Read : forall r l, SA_DA_Soundness (SA_Read (Rgn2_Const true true r)) (DA_Read r l)
-| SA_DA_Write : forall r l, SA_DA_Soundness (SA_Write (Rgn2_Const true true r)) (DA_Write r l)
-| SA_DA_Alloc : forall r l, SA_DA_Soundness (SA_Alloc (Rgn2_Const true true r)) (DA_Alloc r l).
-
-Inductive Epsilon_Phi_Soundness :  (Epsilon * Phi) -> Prop := 
-  | EPS : forall st dy, (forall da, DA_in_Phi da dy -> exists sa, Ensembles.In StaticAction st sa /\ SA_DA_Soundness sa da) -> Epsilon_Phi_Soundness (st, dy).
-
-Lemma ReadOnlyStaticImpliesReadOnlySubstStatic : 
-  forall eps rho,
-    ReadOnlyStatic eps ->
-    ReadOnlyStatic (fold_subst_eps rho eps).
-Proof.
-  intros eps rho ROS.
-  induction ROS.
-  - replace (fold_subst_eps rho Empty_Static_Action) with (Empty_Static_Action).
-    constructor.
-    apply Extensionality_Ensembles;
-    unfold Same_set, Included; split; intros x H; unfold Ensembles.In in *.
-    inversion H. inversion H. destruct H0. inversion H0.
-  - replace (fold_subst_eps rho (Singleton_Static_Action (SA_Read r))) with (Singleton_Static_Action (SA_Read (fold_subst_rgn rho r))).
-    constructor.
-    apply Extensionality_Ensembles;
-    unfold Same_set, Included; split; intros x H; unfold Ensembles.In in *.
-    inversion H.
-    unfold fold_subst_eps. exists (SA_Read r). intuition.
-    inversion H. inversion H0. inversion H1. subst. unfold fold_subst_sa; simpl. apply Ensembles.In_singleton.
-  - replace (fold_subst_eps rho (Union_Static_Action eps1 eps2)) with (Union_Static_Action (fold_subst_eps rho eps1) (fold_subst_eps rho eps2)).
-    constructor; assumption.
-    apply Extensionality_Ensembles;
-    unfold Same_set, Included; split; intros x H; unfold Ensembles.In in *.
-    inversion H; subst; inversion H0; unfold fold_subst_eps; exists x0; split;
-    [apply Ensembles.Union_introl | | apply Ensembles.Union_intror | ]; intuition.
-    inversion H. inversion H0. inversion H1; subst;
-    [apply Ensembles.Union_introl | apply Ensembles.Union_intror]; unfold Ensembles.In; unfold fold_subst_eps; exists x0; intuition.
-Qed.
-
-Lemma ReadOnlyStaticImpliesReadOnlyPhi :
-  forall eps phi,
-    ReadOnlyStatic eps ->
-    Epsilon_Phi_Soundness (eps, phi) ->
-    ReadOnlyPhi phi.
-Proof.
-  intros eps phi. induction phi; intros ROS H.
-  - constructor.
-  - induction d.
-    + exfalso; induction ROS.
-      * inversion H; subst. 
-        edestruct H1; [econstructor | destruct H0 ; inversion H0].
-      * inversion H; subst.
-        edestruct H1; [econstructor | destruct H0 ; inversion H0; subst; inversion H2 ].
-      * inversion H; subst. destruct (H1 (DA_Alloc r n)) as [ ? [ ? ? ]]; [ constructor | ].
-        inversion H0; subst.
-        apply IHROS1; constructor; intros; inversion H4; subst; exists x; intuition.
-        apply IHROS2; constructor; intros; inversion H4; subst; exists x; intuition.
-    + econstructor.
-    + exfalso; induction ROS.
-      * inversion H; subst. 
-        edestruct H1; [econstructor | destruct H0 ; inversion H0].
-      * inversion H; subst.
-        edestruct H1; [econstructor | destruct H0 ; inversion H0; subst; inversion H2 ].
-      * inversion H; subst. destruct (H1 (DA_Write r n)) as [ ? [ ? ? ]]; [ constructor | ].
-        inversion H0; subst.
-        apply IHROS1; constructor; intros; inversion H4; subst; exists x; intuition.
-        apply IHROS2; constructor; intros; inversion H4; subst; exists x; intuition.
-  - assert (Epsilon_Phi_Soundness (eps, phi1)).
-    constructor; intros da daIn; inversion H; subst; apply (H1 da); apply DAP_Par; auto.
-    assert (Epsilon_Phi_Soundness (eps, phi2)).
-    constructor; intros da daIn; inversion H; subst; apply (H2 da); apply DAP_Par; auto.
-    constructor; auto.
-  - assert (Epsilon_Phi_Soundness (eps, phi1)).
-    constructor; intros da daIn; inversion H; subst; apply (H1 da); apply DAP_Seq; auto.
-    assert (Epsilon_Phi_Soundness (eps, phi2)).
-    constructor; intros da daIn; inversion H; subst; apply (H2 da); apply DAP_Seq; auto.
-    constructor; auto.
-Qed.
-
-Lemma EmptyTracePreservesHeap_2 : 
-  forall h r env e same_h v acts,
-    (h, r, env, e) ⇓ (h, v, acts) -> h = same_h -> (same_h, r, env, e) ⇓ (same_h, v, acts).
-Proof.
-  intros h r env e same_h v' acts Dyn H. now subst.
-Qed.
-
-Lemma EmptyTracePreservesHeap_3 : 
-  forall h r env e same_h v acts,
-    (same_h, r, env, e) ⇓ (same_h, v, acts) -> (h, r, env, e) ⇓ (same_h, v, acts) -> acts = Phi_Nil -> (h, r, env, e) ⇓ (h, v, acts).
-Proof.
-  intros h r env e same_h v' acts H Dyn1 Hnil.
-  apply EmptyTracePreservesHeap_1 in Dyn1. now subst. exact Hnil.
-Qed.
-
-Lemma EmptyTracePreservesHeap_4 : 
-  forall h r env e same_h v,
-    (h, r, env, e) ⇓ (same_h, v, Phi_Nil) -> h = same_h.
-Proof.
-   intros h r env e same_h v' Dyn1.
-   dependent induction Dyn1; auto.
-   eapply IHDyn1. reflexivity. eapply IHDyn1. reflexivity.
-Qed.
-
-
-Lemma EmptyTracePreservesHeap_5 : 
-  forall h r env e  v,
-    (h, r, env, e) ⇓ (h, v, Phi_Nil) ->
-    exists same_h,  (same_h, r, env, e) ⇓ (h, v, Phi_Nil).
-Proof.
-  intros h r env e v H.
-  dependent induction H; exists h; econstructor; auto.
-  assumption. assumption.
-Qed.

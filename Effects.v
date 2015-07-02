@@ -6,6 +6,7 @@ Require Import Definitions2.
 Require Import Environment.
 Require Import TypeSystem.
 Require Import Heap.
+Require Import CorrectnessLemmas.
 
 Module EffectSoundness.
 
@@ -15,7 +16,9 @@ Import TypeSoundness.
 Inductive Epsilon_Phi_Soundness :  (Epsilon * Phi) -> Prop := 
   | EPS : forall st dy, (forall da,  DA_in_Phi da dy -> exists sa, In StaticAction st sa) -> Epsilon_Phi_Soundness (st, dy).
 *)
-  
+
+
+
 Lemma EmptyInNil:
   forall st, Epsilon_Phi_Soundness (st, Phi_Nil).
 Proof.
