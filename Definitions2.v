@@ -611,7 +611,7 @@ with BackTriangle : Sigma * Gamma * Omega * Expr * Expr -> Prop :=
                           BackTriangle (stty, ctxt, rgns, ef, efff) ->
                           BackTriangle (stty, ctxt, rgns, ea, effa) ->
                           ReadOnlyStatic static_ef ->
-                          BackTriangle (stty, ctxt, rgns, Mu_App ef ea, efff ⊕ (effa ⊕ (Eff_App ef ea)))                             
+                          BackTriangle (stty, ctxt, rgns, Mu_App ef ea, efff ⊕ (effa ⊕ (Eff_App ef ea)))                           
   | TC_Cond_Cond    : forall stty ctxt rgns (e et ef effe efft efff : Expr) ty_e ty_et ty_ef static_e static_et static_ef,
                           TcExp (stty, ctxt, rgns, e, ty_e, static_e) ->
                           TcExp (stty, ctxt, rgns, et, ty_et, static_et) ->

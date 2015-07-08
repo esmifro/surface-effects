@@ -41,6 +41,96 @@ Proof.
   dependent induction Exprs;
   intros edesc p' eff HReadOnly Specs stty ctxt rgns ty static Henv Hexp Hheap HRho Back;
   inversion Specs; subst; inversion Back; inversion Hexp; subst; try (solve [apply PTS_Nil | apply PhiInThetaTop]).
+  (*- assert (facts ⊑ Some empty_set) by (eapply IHExprs1  with (ee:=∅); eauto; constructor).
+    apply EmptyIsNil in H. rewrite H. rewrite Phi_Seq_Nil_L.
+    assert (aacts ⊑ Some empty_set).
+    eapply IHExprs2 with (ee:=∅) (p':=Phi_Nil); eauto.
+    + assert (h''=fheap) by (eapply ReadOnlyTracePreservesHeap_2; eauto).
+      subst; constructor.
+    + assert (h''=fheap) by (eapply ReadOnlyTracePreservesHeap_2; eauto).
+      subst; assumption.
+    + inversion H1; subst.  rewrite Phi_Seq_Nil_L.
+
+      assert (clsTcVal : exists stty',  
+             (forall l t', ST.find l stty = Some t' -> ST.find l stty' = Some t') 
+               /\ TcHeap (fheap, stty')
+               /\ TcVal (stty', Cls (env', rho', Mu f x ec' ee'), subst_rho rho (Ty2_Arrow tya effc1 ty effe1 Ty2_Effect))) 
+        by (eapply ty_sound; eauto).
+      destruct clsTcVal as [sttyb [Weakb [TcHeapb TcVal_cls]]]; eauto.
+
+      assert (argTcVal : exists stty',
+             (forall l t', ST.find l sttyb = Some t' -> ST.find l stty' = Some t')
+               /\ TcHeap (aheap, stty')
+               /\ TcVal (stty', v0, subst_rho rho tya))
+        by (eapply ty_sound; eauto using update_env, ext_stores__env, ext_stores__exp).
+      destruct argTcVal as [sttya [Weaka [TcHeapa TcVal_v']]]; eauto.
+
+      
+      inversion TcVal_cls as  [ | | | ? ? ? ? ? ? ? TcRho_rho' TcEnv_env' TcExp_abs | | ]; subst. 
+      inversion TcExp_abs as [ | | | | ? ? ? ? ? ? ? ? ? TcExp_eb | | | | | | | |  | | | | | | | | | | |  ]; subst.
+      rewrite <- H12 in TcVal_cls.
+      do 2 rewrite subst_rho_arrow in H12. inversion H12. 
+      rewrite <- H2 in TcVal_v'.
+       
+      eapply IHExprs3 with (ee:=ee') (stty := sttya); eauto.
+      * admit.
+      * apply update_env; simpl.
+        eapply ext_stores__env; eauto.
+        { apply update_env; eauto. }
+        { eassumption. }
+      * eapply ext_stores__exp; eauto.
+      * eapply ext_stores__bt; eauto.
+      * { inversion H2; subst.
+          - admit.
+          - admit.
+          - admit.
+          - admit.
+          - admit.
+          - admit.
+          - admit. }
+      * apply PTS_Seq.
+        { apply PTS_Seq; apply EmptyInAnyTheta; assumption. }
+        { assert (clsTcVal : exists stty',  
+             (forall l t', ST.find l stty = Some t' -> ST.find l stty' = Some t')
+               /\ TcHeap (fheap, stty')
+               /\ TcVal (stty', Cls (env', rho', Mu f x ec' ee'), subst_rho rho (Ty2_Arrow tya effc1 ty effe1 Ty2_Effect))) 
+            by (eapply ty_sound; eauto).
+          destruct clsTcVal as [sttyb [Weakb [TcHeapb TcVal_cls]]]; eauto.
+
+          assert (argTcVal : exists stty',
+                               (forall l t', ST.find l sttyb = Some t' -> ST.find l stty' = Some t')
+                               /\ TcHeap (aheap, stty')
+                               /\ TcVal (stty', v0, subst_rho rho tya))
+            by (eapply ty_sound; eauto using update_env, ext_stores__env, ext_stores__exp).
+          destruct argTcVal as [sttya [Weaka [TcHeapa TcVal_v']]]; eauto.
+
+          
+          inversion TcVal_cls as  [ | | | ? ? ? ? ? ? ? TcRho_rho' TcEnv_env' TcExp_abs | | ]; subst. 
+          inversion TcExp_abs as [ | | | | ? ? ? ? ? ? ? ? ? TcExp_eb | | | | | | | |  | | | | | | | | | | |  ]; subst.
+          rewrite <- H14 in TcVal_cls.
+          do 2 rewrite subst_rho_arrow in H14. inversion H14. 
+          rewrite <- H4 in TcVal_v'.
+
+          eapply IHExprs3 with (ee:=ee') (stty := sttya); eauto.
+          - admit.
+          - apply update_env; simpl.
+            eapply ext_stores__env; eauto.
+            { apply update_env; eauto. }
+            { eassumption. }
+          - eapply ext_stores__exp; eauto.
+          - eapply ext_stores__bt; eauto. }
+      * admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit. *)
   - inversion HReadOnly; subst.
     assert (facts ⊑ effa) by (eapply IHExprs1 with (p':=phia); eauto).
     apply PTS_Seq. 

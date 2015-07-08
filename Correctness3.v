@@ -84,4 +84,6 @@ Proof.
         { assert (h'' = fheap) by (eapply ReadOnlyTracePreservesHeap_2; eauto); subst. assumption. }
         apply Theta_intror. apply Theta_introl. assumption.
     +admit.
+  -
+    
 Admitted.
