@@ -344,7 +344,7 @@ Inductive BigStep   : (Heap * Env * Rho * Expr) -> (Heap * Val * Phi) -> Prop:=
                         Phi_Heap (Phi_Seq acts_mu1 acts_mu2, heap)  (Phi_Seq Phi_Nil Phi_Nil, heap_b) ->
                         heap_a = heap_b ->
                         (heap, env, rho, Pair_Par ef1 ea1 ef2 ea2) 
-                           ⇓ (Functional_Map_Union heap_a heap_b, Pair (v1, v2), Phi_Seq (Phi_Par acts_eff1 acts_eff2) (Phi_Par acts_mu1 acts_mu2))
+                           ⇓ (heap_b, Pair (v1, v2), Phi_Seq (Phi_Par acts_eff1 acts_eff2) (Phi_Par acts_mu1 acts_mu2))
   | BS_Cond_True  : forall e et ef env rho v (heap cheap theap : Heap) (cacts tacts : Phi),
                         (heap, env, rho, e) ⇓ (cheap, (Bit true), cacts) -> 
                         (cheap, env, rho, et) ⇓ (theap, v, tacts) -> 

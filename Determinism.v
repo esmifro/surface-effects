@@ -99,12 +99,11 @@ Proof.
   - assert (HR1 : (heap, Eff theta1, acts_eff1) =  (heap, Eff theta0, acts_eff0)) by (eapply IHDyn1_1; eauto); inversion HR1; subst.
     assert (HR2 : (heap, Eff theta2, acts_eff2) = (heap, Eff theta3, acts_eff3)) by (eapply IHDyn1_2; eauto); inversion HR2; subst.
     assert (HR3 : (heap_mu1, Num v1, acts_mu1) = (heap_mu0, Num v0, acts_mu0))  by (eapply IHDyn1_3; eauto); inversion HR3; subst.
-    assert (HR4 :  (heap_mu2, Num v2, acts_mu2) = (heap_mu3, Num v3, acts_mu3)) by (eapply IHDyn1_4; eauto); inversion HR4; subst.
+    assert (HR4 :  (heap_mu2, Num v2, acts_mu2) = (heap_mu3, Num v3, acts_mu3)) by (eapply IHDyn1_4; eauto); inversion HR4; subst. 
     do 3 f_equal. 
     eapply unique_heap with (heap:=heap)
                             (acts_mu1:=acts_mu0) (acts_mu2:=acts_mu3)
                             (theta1:=theta0) (theta2:=theta3); eauto.
-    + admit.
   - assert ( RH1 : (cheap, Bit true, cacts) = (cheap0, Bit true, cacts0))
       by (eapply IHDyn1_1; [ reflexivity | assumption] ); inversion RH1; subst.
     assert ( RH2 : (heap1, val1, tacts) = (heap2, val2, tacts0)) by (apply IHDyn1_2; assumption).
