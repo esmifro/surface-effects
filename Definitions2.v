@@ -49,44 +49,9 @@ Inductive Expr :=
   | Empty     : Expr. 
 Notation "'(|' a ',' b '|)" := (Pair_Par a b) (at level 60).
 
-(* Dynamic Actions; for operational semantics *)
-Inductive DynamicAction : Set :=
-| DA_Alloc : Region -> nat -> DynamicAction
-| DA_Read  : Region -> nat -> DynamicAction
-| DA_Write : Region -> nat -> DynamicAction. 
 
-Definition Trace := list DynamicAction. 
-Inductive Phi :=
- | Phi_Nil : Phi
- | Phi_Elem : DynamicAction -> Phi                                
- | Phi_Par : Phi -> Phi -> Phi                 
- | Phi_Seq : Phi -> Phi -> Phi.
-
-Inductive ReadOnlyPhi : Phi -> Prop :=
- | Phi_RO_Nil  : ReadOnlyPhi (Phi_Nil)
- | Phi_RO_Elem : forall r a, ReadOnlyPhi (Phi_Elem (DA_Read r a))
- | Phi_RO_Seq  : forall phi1 phi2, ReadOnlyPhi phi1 -> ReadOnlyPhi phi2 -> ReadOnlyPhi (Phi_Seq phi1 phi2)
- | Phi_RO_Par  : forall phi1 phi2, ReadOnlyPhi phi1 -> ReadOnlyPhi phi2 -> ReadOnlyPhi (Phi_Par phi1 phi2).                                                                                       
-
-Definition Empty_Dynamic_Action := Empty_set DynamicAction.
-Definition Singleton_Dynamic_Action (e : DynamicAction) :=  Singleton DynamicAction e.
-Definition Union_Dynamic_Action (a b : Ensemble DynamicAction) :=  Union DynamicAction a b.
-
-(* Static Actions; for type-and-effect system *)
-Definition StaticAction := StaticAction2.
-Definition Epsilon := Epsilon2.
-Definition SA_Alloc:= SA2_Alloc.
-Definition SA_Read:= SA2_Read.
-Definition SA_Write:= SA2_Write.
-
-Definition Empty_Static_Action := Empty_set StaticAction.
-Definition Singleton_Static_Action (e : StaticAction) :=  Singleton StaticAction e.
-Definition Union_Static_Action (a b : Ensemble StaticAction) :=  Union StaticAction a b.
-
-Inductive ReadOnlyStatic : Epsilon -> Prop :=
- | Static_RO_Empty     : ReadOnlyStatic (Empty_Static_Action)
- | Static_RO_Singleton : forall r, ReadOnlyStatic (Singleton_Static_Action (SA_Read r))
- | Static_RO_Union     : forall eps1 eps2, ReadOnlyStatic eps1 -> ReadOnlyStatic eps2 -> ReadOnlyStatic (Union_Static_Action eps1 eps2).                                  
+Module E := FMapAVL.Make (AsciiVars).
+Module Raw := E.Raw.
 
 (* Computed Actions; for effect specification *)
 Inductive ComputedAction : Set :=
@@ -109,6 +74,53 @@ Definition Union_Theta (theta1 theta2 : Theta) :=
     | Some acts1, Some acts2 => Some (set_union acts1 acts2)                                    
   end.
 
+Inductive Val :=
+  | Loc  : rgn2_in_exp -> nat -> Val
+  | Num  : nat -> Val
+  | Bit  : bool -> Val
+  | Cls  : (Raw.t Val * R.t Region * Expr) -> Val                    
+  | Eff  : Theta -> Val             
+  | Unit : Val
+  | Pair : nat * nat -> Val.
+
+(* Dynamic Actions; for operational semantics *)
+Inductive DynamicAction : Type :=
+| DA_Alloc : Region -> nat -> Val -> DynamicAction
+| DA_Read  : Region -> nat -> Val -> DynamicAction
+| DA_Write : Region -> nat -> Val -> DynamicAction. 
+
+Definition Trace := list DynamicAction. 
+Inductive Phi :=
+ | Phi_Nil : Phi
+ | Phi_Elem : DynamicAction -> Phi                                
+ | Phi_Par : Phi -> Phi -> Phi                 
+ | Phi_Seq : Phi -> Phi -> Phi.
+
+Inductive ReadOnlyPhi : Phi -> Prop :=
+ | Phi_RO_Nil  : ReadOnlyPhi (Phi_Nil)
+ | Phi_RO_Elem : forall r a v, ReadOnlyPhi (Phi_Elem (DA_Read r a v))
+ | Phi_RO_Seq  : forall phi1 phi2, ReadOnlyPhi phi1 -> ReadOnlyPhi phi2 -> ReadOnlyPhi (Phi_Seq phi1 phi2)
+ | Phi_RO_Par  : forall phi1 phi2, ReadOnlyPhi phi1 -> ReadOnlyPhi phi2 -> ReadOnlyPhi (Phi_Par phi1 phi2).                                                                                       
+
+Definition Empty_Dynamic_Action := Empty_set DynamicAction.
+Definition Singleton_Dynamic_Action (e : DynamicAction) :=  Singleton DynamicAction e.
+Definition Union_Dynamic_Action (a b : Ensemble DynamicAction) :=  Union DynamicAction a b.
+
+(* Static Actions; for type-and-effect system *)
+Definition StaticAction := StaticAction2.
+Definition Epsilon := Epsilon2.
+Definition SA_Alloc:= SA2_Alloc.
+Definition SA_Read:= SA2_Read.
+Definition SA_Write:= SA2_Write.
+
+Definition Empty_Static_Action := Empty_set StaticAction.
+Definition Singleton_Static_Action (e : StaticAction) :=  Singleton StaticAction e.
+Definition Union_Static_Action (a b : Ensemble StaticAction) :=  Union StaticAction a b.
+
+Inductive ReadOnlyStatic : Epsilon -> Prop :=
+ | Static_RO_Empty     : ReadOnlyStatic (Empty_Static_Action)
+ | Static_RO_Singleton : forall r, ReadOnlyStatic (Singleton_Static_Action (SA_Read r))
+ | Static_RO_Union     : forall eps1 eps2, ReadOnlyStatic eps1 -> ReadOnlyStatic eps2 -> ReadOnlyStatic (Union_Static_Action eps1 eps2).                       
 
 Inductive DA_in_Phi : DynamicAction -> Phi -> Prop :=
 | DAP_Trace : forall da, DA_in_Phi da (Phi_Elem da)
@@ -119,25 +131,25 @@ Inductive DA_in_Theta : DynamicAction -> Theta -> Prop :=
 | DAT_Top :
     forall da, DA_in_Theta da None
 | DAT_Alloc_Abs :
-    forall s l acts,
+    forall s l v acts,
       set_elem acts (CA_AllocAbs s) ->
-      DA_in_Theta (DA_Alloc s l) (Some acts)
+      DA_in_Theta (DA_Alloc s l v) (Some acts)
 | DAT_Read_Abs :
-    forall s l acts,
+    forall s l v acts,
       set_elem acts (CA_ReadAbs s) ->
-      DA_in_Theta (DA_Read s l) (Some acts)
+      DA_in_Theta (DA_Read s l v) (Some acts)
 | DAT_Read_Conc :
-    forall s l acts,
+    forall s l v acts,
       set_elem acts (CA_ReadConc s l) ->
-      DA_in_Theta (DA_Read s l) (Some acts)
+      DA_in_Theta (DA_Read s l v) (Some acts)
 | DAT_Write_Abs :
-    forall s l acts,
+    forall s l v acts,
       set_elem acts (CA_WriteAbs s) ->
-      DA_in_Theta (DA_Write s l) (Some acts)
+      DA_in_Theta (DA_Write s l v) (Some acts)
 | DAT_Write_Conc :
-    forall s l acts,
+    forall s l v acts,
       set_elem acts (CA_WriteConc s l) ->
-      DA_in_Theta (DA_Write s l) (Some acts)
+      DA_in_Theta (DA_Write s l v) (Some acts)
 | DAT_intror :
     forall da a acts, DA_in_Theta da (Some acts) ->
                       DA_in_Theta da (Some (set_union acts a))
@@ -147,10 +159,10 @@ Inductive DA_in_Theta : DynamicAction -> Theta -> Prop :=
 
 
 Inductive Disjoint_Dynamic : DynamicAction -> DynamicAction -> Prop :=
- | DD_Read_Read   : forall r1 l1 r2 l2, Disjoint_Dynamic (DA_Read r1 l1) (DA_Read r2 l2)
- | DD_Write_Write : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Write r1 l1) (DA_Write r2 l2)
- | DD_Read_Write  : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Read r1 l1) (DA_Write r2 l2)
- | DD_Write_Read  : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Write r1 l1) (DA_Read r2 l2).                                                                                
+ | DD_Read_Read   : forall r1 l1 r2 l2 v1 v2, Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Read r2 l2 v2)
+ | DD_Write_Write : forall r1 l1 r2 l2 v1 v2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Write r1 l1 v1) (DA_Write r2 l2 v2)
+ | DD_Read_Write  : forall r1 l1 r2 l2 v1 v2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Write r2 l2 v2)
+ | DD_Write_Read  : forall r1 l1 r2 l2 v1 v2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Write r1 l1 v1) (DA_Read r2 l2 v2).                                                                                
 
 Inductive Disjoint_Static : StaticAction2 -> StaticAction2 -> Prop :=
  | DS_Read_Read   : forall r1 r2, Disjoint_Static (SA2_Read r1) (SA2_Read r2)
@@ -202,23 +214,7 @@ Inductive Conflictness : Theta -> Theta -> Prop :=
  | C_Theta  : forall theta1 theta2,
                  Conflict_Sets_Computed_Actions theta1 theta2  -> Conflictness (Some theta1) (Some theta2).                                                                                                               
 
-
-
-
-Module E := FMapAVL.Make (AsciiVars).
 Module H := FMapAVL.Make (RegionVars).
-
-
-Module Raw := E.Raw.
- 
-Inductive Val :=
-  | Loc  : rgn2_in_exp -> nat -> Val
-  | Num  : nat -> Val
-  | Bit  : bool -> Val
-  | Cls  : (Raw.t Val * R.t Region * Expr) -> Val                    
-  | Eff  : Theta -> Val             
-  | Unit : Val
-  | Pair : nat * nat -> Val.
  
 Definition Env := Raw.t Val.
 Definition Rho := R.t nat.
@@ -253,6 +249,58 @@ Inductive merge : Heap -> Heap -> Heap -> Prop :=
 | mergeL : forall heap1 heap2, merge heap1 heap2 (Functional_Map_Union heap1 heap2)
 | mergeR : forall heap1 heap2, merge heap1 heap2 (Functional_Map_Union heap2 heap1).
 
+
+Reserved Notation "phi '⊑' theta" (at level 50, left associativity).
+Inductive Phi_Theta_Soundness : Phi -> Theta -> Prop :=
+| PTS_Nil :
+    forall theta, (Phi_Nil) ⊑ theta
+| PTS_Elem : forall da theta,
+      DA_in_Theta da theta ->
+      (Phi_Elem da) ⊑ theta
+| PTS_Seq : forall phi1 phi2 theta,
+      phi1 ⊑ theta ->
+      phi2 ⊑ theta ->
+      Phi_Seq phi1 phi2 ⊑ theta
+| PTS_Par : forall phi1 phi2 theta,
+      phi1 ⊑ theta ->
+      phi2 ⊑ theta ->
+      Phi_Par phi1 phi2 ⊑ theta
+where "phi '⊑' theta" := (Phi_Theta_Soundness phi theta) : type_scope.
+
+Inductive Atom_Heap : (DynamicAction * Heap * Heap) -> Prop :=
+| PH_Alloc : forall r l v heap, Atom_Heap (DA_Alloc r l v, heap, update_H ((r,l), v) heap)
+| PH_Read : forall r l v heap, find_H (r,l) heap = Some v -> Atom_Heap (DA_Read r l v, heap, heap)                                                
+| PH_Write : forall r l v heap, find_H (r,l) heap = Some v -> Atom_Heap (DA_Write r l v, heap, update_H ((r, l), v) heap). 
+
+Inductive Phi_Heap : (Phi * Heap) -> (Phi * Heap) -> Prop :=
+| PH_Nil    : forall heap,
+                Phi_Heap (Phi_Nil, heap) (Phi_Nil, heap)
+| PH_Atom   : forall i heap heap',
+                Atom_Heap (i, heap, heap') ->
+                forall phi, Phi_Heap (Phi_Seq (Phi_Elem i) phi, heap)  (phi, heap') 
+| PH_Seq_1  : forall phi1 phi1' heap heap',
+                Phi_Heap (phi1, heap) (phi1', heap') ->
+                forall phi2, Phi_Heap (Phi_Seq phi1 phi2, heap)  (Phi_Seq phi1' phi2, heap')
+| PH_Seq_2  : forall phi2 phi2' heap heap',
+                Phi_Heap (phi2, heap) (phi2', heap') ->
+                forall phi1, Phi_Heap (Phi_Seq phi1 phi2, heap)  (Phi_Seq phi1 phi2', heap')
+| PH_Seq_3  : forall phi2 phi2' heap heap',
+                Phi_Heap (phi2, heap) (phi2', heap') ->
+                Phi_Heap (Phi_Seq Phi_Nil phi2, heap)  (Phi_Seq Phi_Nil phi2', heap')
+| PH_Seq_4  : forall heap,
+                Phi_Heap (Phi_Seq Phi_Nil Phi_Nil, heap)  (Phi_Par Phi_Nil Phi_Nil, heap)
+| PH_Par_1  : forall phi1 phi1' heap heap',
+                Phi_Heap (phi1, heap) (phi1', heap') ->
+                forall phi2, Phi_Heap (Phi_Par phi1 phi2, heap)  (Phi_Par phi1' phi2, heap')
+| PH_Par_2  : forall phi2 phi2' heap heap',
+                Phi_Heap (phi2, heap) (phi2', heap') ->
+                forall phi1, Phi_Heap (Phi_Par phi1 phi2, heap)  (Phi_Par phi1 phi2', heap')
+| PH_Par_3  : forall phi2 phi2' heap heap',
+                Phi_Heap (phi2, heap) (phi2', heap') ->
+                Phi_Heap (Phi_Par Phi_Nil phi2, heap)  (Phi_Par Phi_Nil  phi2', heap')
+| PH_Par_4  : forall heap,
+                Phi_Heap (Phi_Par Phi_Nil Phi_Nil, heap)  (Phi_Par Phi_Nil Phi_Nil, heap). 
+
 Reserved Notation "e '⇓' n" (at level 50, left associativity).
 Inductive BigStep   : (Heap * Env * Rho * Expr) -> (Heap * Val * Phi) -> Prop:=
   | BS_Nat_Cnt    : forall n env rho heap,
@@ -284,15 +332,19 @@ Inductive BigStep   : (Heap * Env * Rho * Expr) -> (Heap * Val * Phi) -> Prop:=
                         (heap, update_rec_E (f, Cls (env', rho', Mu f x ec' ee')) (x, v') env', rho', ee') ⇓ (heap, v, bacts) ->
                         (heap, env, rho, Eff_App ef ea) ⇓ (heap, v, Phi_Seq (Phi_Seq facts aacts) bacts)
   | BS_Pair_Par   : forall env rho ea1 ef1 ea2 ef2 v1 v2 theta1 theta2
-                           (heap heap_mu1 heap_mu2 heap' : Heap) (acts_mu1 acts_mu2 acts_eff1 acts_eff2 : Phi),
+                           (heap heap_mu1 heap_mu2 heap_a heap_b : Heap) (acts_mu1 acts_mu2 acts_eff1 acts_eff2 : Phi),
                         (heap, env, rho, Eff_App ef1 ea1) ⇓ (heap, Eff theta1, acts_eff1) ->
                         (heap, env, rho, Eff_App ef2 ea2) ⇓ (heap, Eff theta2, acts_eff2) ->
-                        Disjointness theta1 theta1 /\ not (Conflictness theta1 theta2) ->
+                        Disjointness theta1 theta2 /\ not (Conflictness theta1 theta2) ->
                         (heap, env, rho, Mu_App ef1 ea1) ⇓ (heap_mu1, Num v1, acts_mu1) ->
                         (heap, env, rho, Mu_App ef2 ea2) ⇓ (heap_mu2, Num v2, acts_mu2) ->
-                        merge heap_mu1 heap_mu2 heap' ->
+                        acts_mu1 ⊑ theta1 ->
+                        acts_mu2 ⊑ theta2 -> 
+                        Phi_Heap (Phi_Par acts_mu1 acts_mu2, heap)  (Phi_Par Phi_Nil Phi_Nil, heap_a) ->
+                        Phi_Heap (Phi_Seq acts_mu1 acts_mu2, heap)  (Phi_Seq Phi_Nil Phi_Nil, heap_b) ->
+                        heap_a = heap_b ->
                         (heap, env, rho, Pair_Par ef1 ea1 ef2 ea2) 
-                           ⇓ (heap', Pair (v1, v2), Phi_Seq (Phi_Par acts_eff1 acts_eff2) (Phi_Par acts_mu1 acts_mu2))
+                           ⇓ (Functional_Map_Union heap_a heap_b, Pair (v1, v2), Phi_Seq (Phi_Par acts_eff1 acts_eff2) (Phi_Par acts_mu1 acts_mu2))
   | BS_Cond_True  : forall e et ef env rho v (heap cheap theap : Heap) (cacts tacts : Phi),
                         (heap, env, rho, e) ⇓ (cheap, (Bit true), cacts) -> 
                         (cheap, env, rho, et) ⇓ (theap, v, tacts) -> 
@@ -307,18 +359,18 @@ Inductive BigStep   : (Heap * Env * Rho * Expr) -> (Heap * Val * Phi) -> Prop:=
                         find_H (r, l) heap' = None -> 
                         (heap, env, rho, Ref w e) ⇓ (update_H ((r, l), v) heap',
                                                      Loc (Rgn2_Const true false r) l,
-                                                     Phi_Seq vacts (Phi_Elem (DA_Alloc r l)))   
+                                                     Phi_Seq vacts (Phi_Elem (DA_Alloc r l v)))   
   | BS_Get_Ref     : forall ea w r l v env rho (heap heap' : Heap) aacts,
                         (heap, env, rho, ea) ⇓ (heap', Loc w l, aacts) ->
                         find_R w rho = Some r ->
                         find_H (r, l) heap' = Some v ->                       
-                        (heap, env, rho, DeRef w ea) ⇓ (heap', v, Phi_Seq aacts (Phi_Elem (DA_Read r l)))
+                        (heap, env, rho, DeRef w ea) ⇓ (heap', v, Phi_Seq aacts (Phi_Elem (DA_Read r l v)))
   | BS_Set_Ref     : forall ea ev w r l v env rho (heap heap' heap'' : Heap) (aacts vacts : Phi),
                         (heap, env, rho, ea) ⇓ (heap', Loc w l, aacts) ->
                         (heap', env, rho, ev) ⇓ (heap'', v, vacts) ->
                         find_R w rho = Some r ->
                         (heap, env, rho, Assign w ea ev) ⇓ (update_H ((r, l), v) heap'', Unit,
-                                                            Phi_Seq (Phi_Seq aacts vacts) (Phi_Elem (DA_Write r l)))
+                                                            Phi_Seq (Phi_Seq aacts vacts) (Phi_Elem (DA_Write r l v)))
   | BS_Nat_Plus    : forall a b va vb env rho (heap lheap rheap : Heap) (lacts racts : Phi),
                         (heap, env, rho, a) ⇓ (lheap, Num va, lacts) ->
                         (lheap, env, rho, b) ⇓ (rheap, Num vb, racts) ->  

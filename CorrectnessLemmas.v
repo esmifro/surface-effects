@@ -2,24 +2,6 @@ Require Import Coq.Program.Equality.
 Require Import Coq.Sets.Ensembles.
 Require Import Definitions2.
 
-
-Reserved Notation "phi '⊑' theta" (at level 50, left associativity).
-Inductive Phi_Theta_Soundness : Phi -> Theta -> Prop :=
-| PTS_Nil :
-    forall theta, (Phi_Nil) ⊑ theta
-| PTS_Elem : forall da theta,
-      DA_in_Theta da theta ->
-      (Phi_Elem da) ⊑ theta
-| PTS_Seq : forall phi1 phi2 theta,
-      phi1 ⊑ theta ->
-      phi2 ⊑ theta ->
-      Phi_Seq phi1 phi2 ⊑ theta
-| PTS_Par : forall phi1 phi2 theta,
-      phi1 ⊑ theta ->
-      phi2 ⊑ theta ->
-      Phi_Par phi1 phi2 ⊑ theta
-where "phi '⊑' theta" := (Phi_Theta_Soundness phi theta) : type_scope.
-
 Axiom Phi_Seq_Nil_L : forall phi, Phi_Seq Phi_Nil phi = phi.
 Axiom Phi_Seq_Nil_R : forall phi, Phi_Seq phi Phi_Nil = phi.
 Axiom Phi_Par_Nil_R : forall phi, Phi_Par Phi_Nil phi = phi.
@@ -187,9 +169,9 @@ Proof.
 Qed.    
 
 Inductive SA_DA_Soundness : StaticAction -> DynamicAction -> Prop :=
-| SA_DA_Read : forall r l, SA_DA_Soundness (SA_Read (Rgn2_Const true true r)) (DA_Read r l)
-| SA_DA_Write : forall r l, SA_DA_Soundness (SA_Write (Rgn2_Const true true r)) (DA_Write r l)
-| SA_DA_Alloc : forall r l, SA_DA_Soundness (SA_Alloc (Rgn2_Const true true r)) (DA_Alloc r l).
+| SA_DA_Read : forall r l v, SA_DA_Soundness (SA_Read (Rgn2_Const true true r)) (DA_Read r l v)
+| SA_DA_Write : forall r l v, SA_DA_Soundness (SA_Write (Rgn2_Const true true r)) (DA_Write r l v)
+| SA_DA_Alloc : forall r l v, SA_DA_Soundness (SA_Alloc (Rgn2_Const true true r)) (DA_Alloc r l v).
 
 Inductive Epsilon_Phi_Soundness :  (Epsilon * Phi) -> Prop := 
   | EPS : forall st dy, (forall da, DA_in_Phi da dy -> exists sa, Ensembles.In StaticAction st sa /\ SA_DA_Soundness sa da) -> Epsilon_Phi_Soundness (st, dy).
@@ -237,7 +219,7 @@ Proof.
         edestruct H1; [econstructor | destruct H0 ; inversion H0].
       * inversion H; subst.
         edestruct H1; [econstructor | destruct H0 ; inversion H0; subst; inversion H2 ].
-      * inversion H; subst. destruct (H1 (DA_Alloc r n)) as [ ? [ ? ? ]]; [ constructor | ].
+      * inversion H; subst. destruct (H1 (DA_Alloc r n v)) as [ ? [ ? ? ]]; [ constructor | ].
         inversion H0; subst.
         apply IHROS1; constructor; intros; inversion H4; subst; exists x; intuition.
         apply IHROS2; constructor; intros; inversion H4; subst; exists x; intuition.
@@ -247,7 +229,7 @@ Proof.
         edestruct H1; [econstructor | destruct H0 ; inversion H0].
       * inversion H; subst.
         edestruct H1; [econstructor | destruct H0 ; inversion H0; subst; inversion H2 ].
-      * inversion H; subst. destruct (H1 (DA_Write r n)) as [ ? [ ? ? ]]; [ constructor | ].
+      * inversion H; subst. destruct (H1 (DA_Write r n v)) as [ ? [ ? ? ]]; [ constructor | ].
         inversion H0; subst.
         apply IHROS1; constructor; intros; inversion H4; subst; exists x; intuition.
         apply IHROS2; constructor; intros; inversion H4; subst; exists x; intuition.

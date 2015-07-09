@@ -20,105 +20,56 @@ Require Import CorrectnessLemmas.
 
 Import TypeSoundness.
 
-Inductive Atom_Heap : (DynamicAction * Heap) -> Prop :=
-| PH_Alloc : forall r l v (heap : Heap), Atom_Heap (DA_Alloc r l, update_H ((r,l), v) heap)
-| PH_Read : forall r l v (heap : Heap), find_H (r,l) heap = Some v -> Atom_Heap (DA_Read r l, heap)                                                
-| PH_Write : forall r l v (heap : Heap), find_H (r,l) heap = Some v -> Atom_Heap (DA_Write r l, update_H ((r, l), v) heap). 
-
-Inductive Phi_Heap : (Phi * Heap) -> (Phi * Heap) -> Prop :=
-| PH_Nil    : forall heap,
-                Phi_Heap (Phi_Nil, heap) (Phi_Nil, heap)
-| PH_Atom   : forall i heap',
-                Atom_Heap (i, heap') ->
-                forall phi heap, Phi_Heap (Phi_Seq (Phi_Elem i) phi, heap)  (phi, heap') 
-| PH_Seq_1  : forall phi1 phi1' heap heap',
-                Phi_Heap (phi1, heap) (phi1', heap') ->
-                forall phi2, Phi_Heap (Phi_Seq phi1 phi2, heap)  (Phi_Seq phi1' phi2, heap')
-| PH_Seq_2  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                forall phi1, Phi_Heap (Phi_Seq phi1 phi2, heap)  (Phi_Seq phi1 phi2', heap')
-| PH_Seq_3  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                Phi_Heap (Phi_Seq Phi_Nil phi2, heap)  (Phi_Seq Phi_Nil phi2', heap')
-| PH_Seq_4  : forall heap,
-                Phi_Heap (Phi_Seq Phi_Nil Phi_Nil, heap)  (Phi_Par Phi_Nil Phi_Nil, heap)
-| PH_Par_1  : forall phi1 phi1' heap heap',
-                Phi_Heap (phi1, heap) (phi1', heap') ->
-                forall phi2, Phi_Heap (Phi_Par phi1 phi2, heap)  (Phi_Par phi1' phi2, heap')
-| PH_Par_2  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                forall phi1, Phi_Heap (Phi_Par phi1 phi2, heap)  (Phi_Par phi1 phi2', heap')
-| PH_Par_3  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                Phi_Heap (Phi_Par Phi_Nil phi2, heap)  (Phi_Par Phi_Nil  phi2', heap')
-| PH_Par_4  : forall heap,
-                Phi_Heap (Phi_Par Phi_Nil Phi_Nil, heap)  (Phi_Par Phi_Nil Phi_Nil, heap).                         
-                        
-
 Lemma unique_heap :
-  forall (eff1 eff2 e1 e2: Expr) (heap heap_mu1 heap_mu2 heap_a heap_b : Heap)
-         (env : Env) (rho : Rho) (acts_eff1 acts_eff2 acts_mu1 acts_mu2: Phi)
-         (v1 v2 : Val) (theta1 theta2 : Theta),
-                        (heap, env, rho, eff1) ⇓ (heap, Eff theta1, acts_eff1) ->
-                        (heap, env, rho, eff2) ⇓ (heap, Eff theta2, acts_eff2) ->
-                        (heap, env, rho, e1) ⇓ (heap_mu1, v1, acts_mu1) ->
-                        (heap, env, rho, e2) ⇓ (heap_mu2, v2, acts_mu2) ->
-                        acts_mu1 ⊑ theta1 ->
-                        acts_mu2 ⊑ theta2 ->
-                        Disjointness theta1 theta1 /\ not (Conflictness theta1 theta2) ->
-                        Phi_Heap (Phi_Par acts_mu1 acts_mu2, heap)  (Phi_Par Phi_Nil Phi_Nil, heap_a) -> 
-                        Phi_Heap (Phi_Seq acts_mu1 acts_mu2, heap)  (Phi_Seq Phi_Nil Phi_Nil, heap_b) ->
-                        heap_a = heap_b.
+  forall (heap heap_mu1 heap_mu2 heap_a heap_b : Heap) (acts_mu1 acts_mu2: Phi) (theta1 theta2 : Theta),
+    acts_mu1 ⊑ theta1 ->
+    acts_mu2 ⊑ theta2 ->
+    Disjointness theta1 theta2 /\ not (Conflictness theta1 theta2) ->
+    Phi_Heap (Phi_Par acts_mu1 acts_mu2, heap)  (Phi_Par Phi_Nil Phi_Nil, heap_a) -> 
+    Phi_Heap (Phi_Seq acts_mu1 acts_mu2, heap)  (Phi_Seq Phi_Nil Phi_Nil, heap_b) ->
+    heap_a = heap_b.
 Proof.
-  intros eff1 eff2 e1 e2
-         heap heap_mu1 heap_mu2 heap_a heap_b
-         env rho
-         acts_eff1 acts_eff2 acts_mu1 acts_mu2
-         v1 v2
+  intros heap heap_mu1 heap_mu2 heap_a heap_b
+         acts_mu1 acts_mu2
          theta1 theta2.
-  intros H1 H2 H3 H4 H5 H6 H7 H8 H9.
-  generalize dependent eff1.
-  generalize dependent eff2.
+  intros H1 H2 H3 H4 H5. 
   generalize dependent theta1.
   generalize dependent theta2.
   generalize dependent heap_a.
   generalize dependent heap_b. 
-  generalize dependent acts_eff2.
-  generalize dependent acts_eff1.
   induction acts_mu1, acts_mu2;
-    try (solve [ intros acts_eff1 acts_eff2 heap_b HPhi2 heap_a HPhi1;
-                 intros theta2 HTheta2 theta1 HTheta1;
-                 intros HDisj; intros eff2 HEff2 eff1 HEff1;
+    try (solve [ intros heap_b HPhi2 heap_a; intros theta2 HTheta2 theta1 HTheta1; intros HDisj; 
                  inversion HPhi1; subst; inversion HPhi2; subst
-               | intros acts_eff1 acts_eff2 heap_b HPhi2 heap_a HPhi1;
-                 intros theta2 HTheta2 theta1 HTheta1;
-                 intros HDisj; intros eff2 HEff2 eff1 HEff1;
+               | intros heap_b HPhi2 heap_a HPhi1; intros theta2 HTheta2 theta1 HTheta1; intros HDisj; 
                  inversion HPhi1; subst; inversion HPhi2; subst;
                  inversion H1; inversion H0; subst
-               | intros acts_eff1 acts_eff2 heap_b HPhi2 heap_a HPhi1;
-                 intros theta2 HTheta2 theta1 HTheta1;
-                 intros HDisj; intros eff2 HEff2 eff1 HEff1;
+               | intros heap_b HPhi2 heap_a HPhi1; intros theta2 HTheta2 theta1 HTheta1; intros HDisj; 
                  inversion HPhi1; subst; inversion HPhi2; subst;
                  try (solve [inversion H1; inversion H0; subst; symmetry; assumption | inversion H0; subst; reflexivity])
                ]).
-  - intros acts_eff1 acts_eff2 heap_b HPhi2 heap_a HPhi1;
-    intros theta2 HTheta2 theta1 HTheta1;
-    intros HDisj; intros eff2 HEff2 eff1 HEff1;
+  - intros heap_b HPhi2 heap_a HPhi1; intros theta2 HTheta2 theta1 HTheta1; intros HDisj; 
     inversion HPhi1; subst; inversion HPhi2; subst;
-    inversion H1; inversion H0; subst; inversion H9; subst.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-  - intros acts_eff1 acts_eff2 heap_b HPhi2 heap_a HPhi1;
-    intros theta2 HTheta2 theta1 HTheta1;
-    intros HDisj; intros eff2 HEff2 eff1 HEff1;
+    inversion H1; inversion H0; subst;
+    inversion H7; subst;
+    inversion HTheta2; subst;
+    (*destruct HDisj as [HD HC]; inversion HD; subst; unfold not in HC;*)
+    clear HPhi1; clear HPhi2; clear H7; clear H1; clear H0; clear H11; clear HTheta2.
+    + inversion H2; inversion H8; subst;
+      try (solve [inversion H | inversion H7 | inversion H5 | inversion H5; subst; reflexivity ]).
+    + inversion H2; inversion H8; subst;
+      try (solve [inversion H | inversion H7 | inversion H5 | inversion H5; subst; reflexivity ]).
+    + inversion H2; inversion H8; subst;
+      try (solve [inversion H | inversion H7 | inversion H5 | inversion H5; subst; reflexivity ]).
+    + inversion H2; inversion H8; subst;
+      try (solve [inversion H | inversion H7 | inversion H5 | inversion H5; subst; reflexivity ]).
+  - intros heap_b HPhi2 heap_a HPhi1; intros theta2 HTheta2 theta1 HTheta1; intros HDisj; 
     inversion HPhi1; subst; inversion HPhi2; subst.
-    inversion H1; inversion H0; subst; inversion H9; subst.
-    admit.
-Qed.        
-    
-
+    inversion H1; inversion H0; subst; inversion H7; subst.
+    eapply IHacts_mu1_1; eauto.
+    + rewrite Phi_Seq_Nil_L; assumption.
+    + rewrite Phi_Seq_Nil_R in HPhi1; assumption.
+    + rewrite Phi_Seq_Nil_R in HTheta1; assumption. 
+Qed.         
 
 Theorem DynamicDeterminism :
   forall heap rgns env exp heap1 heap2 val1 val2 acts1 acts2,
@@ -149,13 +100,11 @@ Proof.
     assert (HR2 : (heap, Eff theta2, acts_eff2) = (heap, Eff theta3, acts_eff3)) by (eapply IHDyn1_2; eauto); inversion HR2; subst.
     assert (HR3 : (heap_mu1, Num v1, acts_mu1) = (heap_mu0, Num v0, acts_mu0))  by (eapply IHDyn1_3; eauto); inversion HR3; subst.
     assert (HR4 :  (heap_mu2, Num v2, acts_mu2) = (heap_mu3, Num v3, acts_mu3)) by (eapply IHDyn1_4; eauto); inversion HR4; subst.
-    assert (HR5 : heap2 = heap1).
-    inversion H0; inversion H16; subst.
-    + reflexivity.
+    do 3 f_equal. 
+    eapply unique_heap with (heap:=heap)
+                            (acts_mu1:=acts_mu0) (acts_mu2:=acts_mu3)
+                            (theta1:=theta0) (theta2:=theta3); eauto.
     + admit.
-    + admit. 
-    + reflexivity.
-    + rewrite HR5. reflexivity.
   - assert ( RH1 : (cheap, Bit true, cacts) = (cheap0, Bit true, cacts0))
       by (eapply IHDyn1_1; [ reflexivity | assumption] ); inversion RH1; subst.
     assert ( RH2 : (heap1, val1, tacts) = (heap2, val2, tacts0)) by (apply IHDyn1_2; assumption).

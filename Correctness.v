@@ -1126,7 +1126,7 @@ Proof.
     + eapply IHExprs2 with (ee:=Cond (Eff_App ef1 ea) et0 ef0) (p':=Phi_Seq (Phi_Seq (Phi_Seq facts aacts) bacts) tacts0) ; eauto.
     + eapply IHExprs2 with (ee:=Cond (Cond e et1 ef1) et0 ef0) (p':=Phi_Seq (Phi_Seq cacts tacts1) tacts0) ; eauto.
     + eapply IHExprs2 with (ee:=Cond (Cond e et1 ef1) et0 ef0) (p':=Phi_Seq (Phi_Seq cacts facts) tacts0) ; eauto.
-    + eapply IHExprs2 with (ee:=Cond (DeRef w ea) et0 ef0) (p':= Phi_Seq (Phi_Seq aacts (Phi_Elem (DA_Read r l))) tacts0) ; eauto.
+    + eapply IHExprs2 with (ee:=Cond (DeRef w ea) et0 ef0) (p':= Phi_Seq (Phi_Seq aacts (Phi_Elem (DA_Read r l (Bit true)))) tacts0) ; eauto.
     + eapply IHExprs2 with (ee:=Cond (Eq a b) et0 ef0) (p':= Phi_Seq (Phi_Seq lacts racts) tacts0) ; eauto.
     + eapply IHExprs2 with (ee:=Cond (Bool true) et0 ef0) (p':= Phi_Seq Phi_Nil tacts0) ; eauto.   
     + eapply IHExprs2 with (ee:=Cond (Var x0) et0 ef0) (p':= Phi_Seq Phi_Nil tacts0); eauto.
@@ -1135,7 +1135,7 @@ Proof.
     + eapply IHExprs2 with (ee:=Cond (Eff_App ef1 ea) et0 ef0) (p':= Phi_Seq (Phi_Seq (Phi_Seq facts aacts) bacts) tacts0); eauto.
     + eapply IHExprs2 with (ee:=Cond (Cond e et1 ef1) et0 ef0) (p':=  Phi_Seq (Phi_Seq cacts tacts1) tacts0); eauto.
     + eapply IHExprs2 with (ee:=Cond (Cond e et1 ef1) et0 ef0) (p':=  Phi_Seq (Phi_Seq cacts facts) tacts0); eauto.
-    + eapply IHExprs2 with (ee:=Cond (DeRef w ea) et0 ef0) (p':= Phi_Seq (Phi_Seq aacts (Phi_Elem (DA_Read r l))) tacts0); eauto.
+    + eapply IHExprs2 with (ee:=Cond (DeRef w ea) et0 ef0) (p':= Phi_Seq (Phi_Seq aacts (Phi_Elem (DA_Read r l (Bit true)))) tacts0); eauto.
     + eapply IHExprs2 with (ee:=Cond (Eq a b) et0 ef0) (p':= Phi_Seq (Phi_Seq lacts racts) tacts0); eauto. 
   - assert ( Hbit : (cheap, Bit true, cacts) = (cheap0, Bit false, cacts0) )
       by (eapply DynamicDeterminism; eauto); discriminate Hbit.
@@ -1149,7 +1149,7 @@ Proof.
     +  eapply IHExprs2 with (ee:= Cond (Eff_App ef1 ea) et0 ef0) (p':= Phi_Seq (Phi_Seq (Phi_Seq facts0 aacts) bacts) facts) ; eauto.
     +   eapply IHExprs2 with (ee:=Cond (Cond e et1 ef1) et0 ef0) (p':=  Phi_Seq (Phi_Seq cacts tacts0) facts); eauto.
     +   eapply IHExprs2 with (ee:=Cond (Cond e et1 ef1) et0 ef0) (p':= Phi_Seq (Phi_Seq cacts facts0) facts); eauto.
-    + eapply IHExprs2 with (ee:=Cond (DeRef w ea) et0 ef0) (p':= Phi_Seq (Phi_Seq aacts (Phi_Elem (DA_Read r l))) facts) ; eauto.
+    + eapply IHExprs2 with (ee:=Cond (DeRef w ea) et0 ef0) (p':= Phi_Seq (Phi_Seq aacts (Phi_Elem (DA_Read r l (Bit false)))) facts) ; eauto.
     +  eapply IHExprs2 with (ee:=Cond (Eq a b) et0 ef0) (p':= Phi_Seq (Phi_Seq lacts racts) facts); eauto.
     + eapply IHExprs2 with (ee:=Cond e0 et0 ef0) (p':= Phi_Seq cacts0 facts); eauto.  
   - assert (cacts ⊑ Some empty_set) by (eapply IHExprs1; eauto; constructor).
@@ -1284,7 +1284,7 @@ Proof.
             rewrite <- H1; eassumption. }
           apply Theta_introl. assumption. 
      + inversion H7; subst.
-       assert (Phi_Elem (DA_Write r l) ⊑ effb0).
+       assert (Phi_Elem (DA_Write r l v0) ⊑ effb0).
        apply PTS_Elem; inversion H12; subst.
        inversion H1; subst.
        inversion H; subst.
@@ -1302,7 +1302,7 @@ Proof.
            rewrite <- H1; eassumption. }
          apply Theta_introl. assumption.
      + inversion H7; subst.
-       assert (Phi_Elem (DA_Write r l) ⊑ effb0).
+       assert (Phi_Elem (DA_Write r l v0) ⊑ effb0).
        apply PTS_Elem; inversion H12; subst.
        assert ( HD : (heap', Loc (Rgn2_Const true false s) l, aacts) =  (h, Loc (Rgn2_Const true false r0) l0, Phi_Nil))
          by (eapply DynamicDeterminism; eauto). inversion HD; subst.
