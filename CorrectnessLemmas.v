@@ -1,5 +1,6 @@
 Require Import Coq.Program.Equality.
 Require Import Coq.Sets.Ensembles.
+Require Import Coq.Lists.List.
 Require Import Definitions2.
 
 Axiom Phi_Seq_Nil_L : forall phi, Phi_Seq Phi_Nil phi = phi.
@@ -26,7 +27,7 @@ Proof.
     rewrite Phi_Par_Nil_R. reflexivity.
   - assert ( H1 : phi1 = Phi_Nil ) by (apply IHphi1; inversion H; assumption); rewrite H1.
     assert ( H2 : phi2 = Phi_Nil ) by (apply IHphi2; inversion H; assumption); rewrite H2.
-    rewrite Phi_Seq_Nil_R. reflexivity.  
+    rewrite Phi_Seq_Nil_R. reflexivity. 
 Qed.
 
 
@@ -119,7 +120,256 @@ Proof.
   - apply PTS_Seq. apply IHphi1. now inversion H. apply IHphi2. now inversion H.
 Qed.
 
+
+Lemma Disjointness_app_or_r :
+  forall phi1 phi2 phi3,
+    Disjoint_Traces (phi_as_list phi1 ++ phi_as_list phi2) (phi_as_list phi3) ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi3) \/
+    Disjoint_Traces (phi_as_list phi2) (phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H. 
+  dependent induction H.
+  left; econstructor; intros.
+  apply H;  [ apply in_or_app; left | ]; assumption.
+Qed.
+
+Lemma Disjointness_app_or_l :
+  forall phi1 phi2 phi3,
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2 ++ phi_as_list phi3) ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) \/
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H. 
+  dependent induction H.
+  left; econstructor; intros.
+  apply H;  [ | apply in_or_app; left]; assumption.
+Qed.
+
+Lemma Disjointness_app_app_and_r :
+  forall phi1 phi2 phi3,
+    Disjoint_Traces (phi_as_list phi1 ++ phi_as_list phi2) (phi_as_list phi3) ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi3) /\
+    Disjoint_Traces (phi_as_list phi2) (phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H.  
+  dependent induction H; split.
+  - econstructor; intros. apply H;  [ apply in_or_app; left | ]; assumption.
+  - econstructor; intros. apply H;  [ apply in_or_app; right | ]; assumption.
+Qed.
+
+Lemma Disjointness_app_app_and_l :
+  forall phi1 phi2 phi3,
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2 ++ phi_as_list phi3) ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) /\
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H.  
+  dependent induction H; split.
+  - econstructor; intros. apply H; [ |  apply in_or_app; left ]; assumption.
+  - econstructor; intros. apply H;  [ | apply in_or_app; right ]; assumption.
+Qed.
+
+Lemma Disjointness_and_app_r :
+  forall phi1 phi2 phi3,
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi3) /\
+    Disjoint_Traces (phi_as_list phi2) (phi_as_list phi3) ->
+    Disjoint_Traces (phi_as_list phi1 ++ phi_as_list phi2) (phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H. destruct H. 
+  generalize dependent phi2.
+  dependent induction H; intros.
+  econstructor; intros.
+  rename H into H1_3. inversion H0 as [? ? H2_3]; subst.
+  apply in_app_or in H1; destruct H1; [apply H1_3 | apply H2_3]; auto.
+Qed.
+
+Lemma Disjointness_and_app_l :
+  forall phi1 phi2 phi3,
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) /\
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi3) ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2 ++ phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H. destruct H. 
+  generalize dependent phi2.
+  dependent induction H0; intros.
+  econstructor; intros. 
+  rename H into H1_3. inversion H0 as [? ? H1_2]; subst.
+  apply in_app_or in H2; destruct H2; [apply H1_2 | apply H1_3]; auto.
+Qed.
+
+Lemma Conflictness_app_or_l :
+  forall phi1 phi2 phi3,
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Det_Trace phi3 ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2 ++ phi_as_list phi3) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) \/
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi3). 
+Proof.
+  intros phi1 phi2 phi3 HDet1 HDet2 HDet3 H. unfold not in *.
+  left. intro. apply H. clear H.  
+  dependent induction H0;
+    inversion HDet1; inversion HDet2; inversion HDet3; subst; simpl in *;
+    try (solve [contradiction |
+                intuition; subst; econstructor; eauto; apply in_eq |
+                intuition; subst; inversion HDet3; subst; econstructor; eauto; apply in_eq |
+                intuition; subst; rewrite app_nil_r; econstructor; eauto; apply in_eq |
+                intuition; subst; econstructor; eauto; [apply in_eq | apply in_or_app; left; assumption] |
+                 econstructor; eauto;  apply in_or_app; left; assumption
+               ]).
+Qed.
+
+Lemma Conflictness_app_or_r :
+  forall phi1 phi2 phi3,
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Det_Trace phi3 ->
+    ~ Conflict_Traces (phi_as_list phi1 ++ phi_as_list phi2) (phi_as_list phi3) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi3) \/
+    ~ Conflict_Traces (phi_as_list phi2) (phi_as_list phi3). 
+Proof.
+  intros phi1 phi2 phi3 HDet1 HDet2 HDet3 H. unfold not in *.
+  left. intro. apply H. clear H.  
+  dependent induction H0;
+    inversion HDet1; inversion HDet2; inversion HDet3; subst; simpl in *;
+    try (solve [contradiction |
+                intuition; subst; econstructor; [ apply in_eq | apply in_eq | eassumption] |
+                intuition; subst; econstructor; [ apply in_eq | eassumption | assumption] |
+                intuition; subst; econstructor; [rewrite app_nil_r; eassumption |  apply in_eq | assumption ] |
+                intuition; subst; econstructor; [rewrite app_nil_r; eassumption | eassumption | assumption ] |
+                intuition; subst; econstructor; [apply in_or_app; left; eassumption |  apply in_eq | assumption ] |
+                intuition; subst; econstructor; [ apply in_or_app; left; eassumption | eassumption | assumption ]
+               ]).
+Qed.
+
+Lemma Conflictness_app_and_l :
+  forall phi1 phi2 phi3,
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Det_Trace phi3 ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2 ++ phi_as_list phi3) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) /\
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi3). 
+Proof.
+  intros phi1 phi2 phi3 HDet1 HDet2 HDet3 H. unfold not in *.
+  split.
+  - intro. apply H. clear H.
+    dependent induction H0;
+      inversion HDet1; inversion HDet2; inversion HDet3; subst; simpl in *;
+      try (solve [contradiction |
+                intuition; subst; econstructor; eauto; apply in_eq |
+                intuition; subst; inversion HDet3; subst; econstructor; eauto; apply in_eq |
+                intuition; subst; rewrite app_nil_r; econstructor; eauto; apply in_eq |
+                intuition; subst; econstructor; eauto; [apply in_eq | apply in_or_app; left; assumption] |
+                 econstructor; eauto;  apply in_or_app; left; assumption
+                 ]).
+  -  intro. apply H. clear H.
+    dependent induction H0;
+      inversion HDet1; inversion HDet2; inversion HDet3; subst; simpl in *;
+      try (solve [contradiction |
+                  econstructor; eauto;  apply in_or_app; right; assumption |
+                  intuition; subst; econstructor; eauto; [ apply in_eq | apply in_cons; apply in_eq] |
+                  intuition; subst; econstructor; eauto; [ apply in_eq | apply in_cons; assumption] |
+                  intuition; subst; econstructor; eauto; apply in_cons; apply in_eq |
+                  intuition; subst; econstructor; eauto; apply in_cons;assumption
+                 ]).
+Qed.
+
+
+Lemma Conflictness_app_and_r :
+  forall phi1 phi2 phi3,
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Det_Trace phi3 ->
+    ~ Conflict_Traces (phi_as_list phi1 ++ phi_as_list phi2) (phi_as_list phi3) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi3) /\
+    ~ Conflict_Traces (phi_as_list phi2) (phi_as_list phi3). 
+Proof.
+  intros phi1 phi2 phi3 HDet1 HDet2 HDet3 H. unfold not in *.
+  split.
+  - intro. apply H. clear H.
+    dependent induction H0;
+      inversion HDet1; inversion HDet2; inversion HDet3; subst; simpl in *;
+      try (solve [contradiction |
+                intuition; subst; econstructor; eauto; apply in_eq |
+                intuition; subst; inversion HDet3; subst; econstructor; eauto; apply in_eq |
+                intuition; subst; rewrite app_nil_r; econstructor; eauto; apply in_eq |
+                intuition; subst; econstructor; eauto; [apply in_eq | apply in_or_app; left; assumption] |
+                 econstructor; eauto;  apply in_or_app; left; assumption
+                 ]).
+  -  intro. apply H. clear H.
+    dependent induction H0;
+      inversion HDet1; inversion HDet2; inversion HDet3; subst; simpl in *;
+      try (solve [contradiction |
+                  econstructor; eauto;  apply in_or_app; right; assumption |
+                  intuition; subst; econstructor; eauto; [ apply in_eq | apply in_cons; apply in_eq] |
+                  intuition; subst; econstructor; eauto; apply in_cons; apply in_eq |
+                  intuition; subst; econstructor; eauto; apply in_cons;assumption |
+                  intuition; subst; econstructor; eauto; [apply in_cons; apply in_eq | apply in_eq] |
+                  intuition; subst; econstructor; eauto; [apply in_cons; assumption | apply in_eq]
+                 ]).
+Qed.
+
+Lemma Conflictness_or_app_l :
+  forall phi1 phi2 phi3,
+    Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) \/
+    Conflict_Traces (phi_as_list phi1) (phi_as_list phi3) ->
+    Conflict_Traces (phi_as_list phi1) (phi_as_list phi2 ++ phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H.
+  destruct H. 
+  - dependent induction H. econstructor; eauto. apply in_or_app. left; assumption.
+  - dependent induction H. econstructor; eauto. apply in_or_app. right; assumption.
+Qed.
+
+Lemma Conflictness_or_app_r :
+  forall phi1 phi2 phi3,
+    Conflict_Traces (phi_as_list phi1) (phi_as_list phi3) \/
+    Conflict_Traces (phi_as_list phi2) (phi_as_list phi3) ->
+    Conflict_Traces (phi_as_list phi1 ++ phi_as_list phi2) (phi_as_list phi3).
+Proof.
+  intros phi1 phi2 phi3 H.
+  destruct H. 
+  - dependent induction H. econstructor; eauto. apply in_or_app. left; assumption.
+  - dependent induction H. econstructor; eauto. apply in_or_app. right; assumption.
+Qed.
+ 
+Lemma Conflictness_and_app_l :
+  forall phi1 phi2 phi3,
+    ~ Conflict_Traces (phi_as_list phi1 ) (phi_as_list phi2 ) /\
+    ~ Conflict_Traces (phi_as_list phi1 ) (phi_as_list phi3 ) ->
+    ~ Conflict_Traces (phi_as_list phi1 ) (phi_as_list phi2  ++ phi_as_list phi3 ).
+Proof.
+  intros phi1 phi2 phi3 H. unfold not in *. destruct H. 
+  intro. dependent induction H1.  apply in_app_or in H3. intuition.
+  + apply H. econstructor; eauto.
+  + apply H0. econstructor; eauto. 
+Qed.
+
+
+Lemma Conflictness_and_app_r :
+  forall phi1 phi2 phi3,
+    ~ Conflict_Traces (phi_as_list phi1 ) (phi_as_list phi3 ) /\
+    ~ Conflict_Traces (phi_as_list phi2 ) (phi_as_list phi3 ) ->
+    ~ Conflict_Traces (phi_as_list phi1 ++ phi_as_list phi2)  (phi_as_list phi3 ).
+Proof.
+  intros phi1 phi2 phi3 H. unfold not in *. destruct H. 
+  intro. dependent induction H1.  apply in_app_or in H3. intuition.
+  + apply H. econstructor; eauto.
+  + apply H0. econstructor; eauto. 
+Qed.
+
 Lemma EmptyTracePreservesHeap_1 : 
+  forall h r env e same_h v' acts, (h, r, env, e) ⇓ (same_h, v', acts) -> acts = Phi_Nil -> h = same_h.
+Proof.
+  intros h r env e same_h v' acts H Hnil.  (*destruct H as [H Hnil]. *)
+  dependent induction H; auto; inversion Hnil.
+  - eapply IHBigStep; [reflexivity | auto].
+  - eapply IHBigStep; [reflexivity | auto]. 
+Qed.
+
+
+Lemma EMPTYTRACEPRESERVESHEAP_1 : 
   forall h r env e same_h v' acts, (h, r, env, e) ⇓ (same_h, v', acts) -> acts = Phi_Nil -> h = same_h.
 Proof.
   intros h r env e same_h v' acts H Hnil.  (*destruct H as [H Hnil]. *)

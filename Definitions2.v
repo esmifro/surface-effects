@@ -96,6 +96,15 @@ Inductive Phi :=
  | Phi_Par : Phi -> Phi -> Phi                 
  | Phi_Seq : Phi -> Phi -> Phi.
 
+Fixpoint phi_as_list (phi : Phi) : Trace :=
+  match phi with
+    | Phi_Nil => nil
+    | Phi_Elem a => a::nil
+    | Phi_Seq phi1 phi2 =>  (phi_as_list phi1) ++ (phi_as_list phi2)
+    | Phi_Par phi1 phi2 =>  (phi_as_list phi1) ++ (phi_as_list phi2)
+  end.                   
+
+
 Inductive ReadOnlyPhi : Phi -> Prop :=
  | Phi_RO_Nil  : ReadOnlyPhi (Phi_Nil)
  | Phi_RO_Elem : forall r a v, ReadOnlyPhi (Phi_Elem (DA_Read r a v))
@@ -159,10 +168,25 @@ Inductive DA_in_Theta : DynamicAction -> Theta -> Prop :=
 
 
 Inductive Disjoint_Dynamic : DynamicAction -> DynamicAction -> Prop :=
- | DD_Read_Read   : forall r1 l1 r2 l2 v1 v2, Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Read r2 l2 v2)
- | DD_Write_Write : forall r1 l1 r2 l2 v1 v2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Write r1 l1 v1) (DA_Write r2 l2 v2)
- | DD_Read_Write  : forall r1 l1 r2 l2 v1 v2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Write r2 l2 v2)
- | DD_Write_Read  : forall r1 l1 r2 l2 v1 v2, r1 <> r2 -> l1 <> l2 -> Disjoint_Dynamic (DA_Write r1 l1 v1) (DA_Read r2 l2 v2).                                                                                
+| DD_Alloc_Alloc  : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Alloc r1 l1 v1) (DA_Alloc r2 l2 v2)
+| DD_Alloc_Read   : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Alloc r1 l1 v1) (DA_Read r2 l2 v2)
+| DD_Alloc_Write  : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Alloc r1 l1 v1) (DA_Write r2 l2 v2)
+| DD_Read_Alloc   : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Alloc r2 l2 v2)
+| DD_Read_Read   : forall r1 l1 r2 l2 v1 v2, Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Read r2 l2 v2)
+| DD_Read_Write   : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Read r1 l1 v1) (DA_Write r2 l2 v2)
+| DD_Write_Alloc  : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Write r2 l2 v2) (DA_Alloc r1 l1 v1)
+| DD_Write_Write  : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Write r2 l2 v2) (DA_Write r1 l1 v1)
+| DD_Write_Read   : forall r1 l1 r2 l2 v1 v2, (r1, l1) <> (r2, l2) -> Disjoint_Dynamic (DA_Write r2 l2 v2) (DA_Read r1 l1 v1).
+
+
+Inductive Disjoint_Traces : Trace -> Trace -> Prop :=
+| D_Trace_DA     : forall phi1 phi2,
+                     (forall p1 p2, In p1 phi1 -> In p2 phi2 -> Disjoint_Dynamic p1 p2) ->
+                     Disjoint_Traces phi1 phi2.
+
+Axiom Disjoint_Traces_Sym :
+  forall t1 t2, Disjoint_Traces t1 t2 -> Disjoint_Traces t2 t1.
+
 
 Inductive Disjoint_Static : StaticAction2 -> StaticAction2 -> Prop :=
  | DS_Read_Read   : forall r1 r2, Disjoint_Static (SA2_Read r1) (SA2_Read r2)
@@ -172,47 +196,81 @@ Inductive Disjoint_Static : StaticAction2 -> StaticAction2 -> Prop :=
 
 
 Inductive Disjoint_Computed_Actions : ComputedAction -> ComputedAction -> Prop :=
- | D_CA_ReadConc_ReadConc   : forall r1 l1 r2 l2, Disjoint_Computed_Actions (CA_ReadConc r1 l1) (CA_ReadConc r2 l2)
+| D_CA_ReadConc_ReadConc    : forall r1 l1 r2 l2, Disjoint_Computed_Actions (CA_ReadConc r1 l1) (CA_ReadConc r2 l2)
+| D_CA_ReadConc_Alloc       : forall r1 l1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_ReadConc r1 l1) (CA_AllocAbs r2)
+| D_CA_ReadConc_ReadAbs     : forall r1 l1 r2, Disjoint_Computed_Actions (CA_ReadConc r1 l1) (CA_ReadAbs r2)
+| D_CA_ReadConc_WriteAbs    : forall r1 l1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_ReadConc r1 l1) (CA_WriteAbs r2)
+| D_CA_ReadConc_WriteConc   : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Computed_Actions (CA_ReadConc r1 l1) (CA_WriteConc r2 l2) 
  | D_CA_ReadAbs_ReadConc    : forall r1 r2 l2, Disjoint_Computed_Actions (CA_ReadAbs r1) (CA_ReadConc r2 l2)
- | D_CA_WriteConc_WriteConc : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Computed_Actions (CA_WriteConc l1 r1) (CA_WriteConc r2 l2)
+ | D_CA_ReadAbs_ReadAbs     : forall r1 r2, Disjoint_Computed_Actions (CA_ReadAbs r1) (CA_ReadAbs r2)
+ | D_CA_ReadAbs_Alloc       : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_ReadAbs r1) (CA_AllocAbs r2)
+ | D_CA_ReadAbs_WriteAbs    : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_ReadAbs r1) (CA_WriteAbs r2)
+ | D_CA_ReadAbs_WriteConc   : forall r1 r2 l2, r1 <> r2 -> Disjoint_Computed_Actions (CA_ReadAbs r1) (CA_WriteConc r2 l2)
+ | D_CA_WriteConc_WriteConc : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Computed_Actions (CA_WriteConc r1 l1) (CA_WriteConc r2 l2)
  | D_CA_WriteAbs_WriteConc  : forall r1 r2 l2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteAbs r1) (CA_WriteConc r2 l2)
  | D_CA_WriteAbs_WriteAbs   : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteAbs r1) (CA_WriteAbs r2)
- | D_CA_WriteConc_ReadConc  : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Computed_Actions (CA_WriteConc l1 r1) (CA_ReadConc r2 l2)
+ | D_CA_WriteAbs_Alloc      : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteAbs r1) (CA_AllocAbs r2)
+ | D_CA_WriteConc_ReadConc  : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Computed_Actions (CA_WriteConc r1 l1) (CA_ReadConc r2 l2)
  | D_CA_WriteConc_ReadAbs   : forall r1 l1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteConc r1 l1) (CA_ReadAbs r2)
- | D_CA_WriteAbs_ReadConc  : forall r1 l1 r2 l2, r1 <> r2 -> l1 <> l2 -> Disjoint_Computed_Actions (CA_WriteConc l1 r1) (CA_ReadConc r2 l2)
- | D_CA_WriteAbs_ReadAbs   : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteAbs r1) (CA_ReadAbs r2).
-
-Axiom Disjoint_Computed_Actions_Refl :
-  forall ca1 ca2, Disjoint_Computed_Actions ca1 ca2 -> Disjoint_Computed_Actions ca2 ca1.
+ | D_CA_WriteConc_Alloc     : forall r1 l1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteConc r1 l1) (CA_AllocAbs r2)
+ | D_CA_WriteAbs_ReadConc   : forall r1 r2 l2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteAbs r1) (CA_ReadConc r2 l2)
+ | D_CA_WriteAbs_ReadAbs    : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_WriteAbs r1) (CA_ReadAbs r2)
+ | D_CA_Alloc_Alloc         : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_AllocAbs r1) (CA_AllocAbs r2)
+ | D_CA_Alloc_ReadAbs       : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_AllocAbs r1) (CA_ReadAbs r2)
+ | D_CA_Alloc_ReadConc      : forall r1 r2 l2, r1 <> r2 -> Disjoint_Computed_Actions (CA_AllocAbs r1) (CA_ReadConc r2 l2)
+ | D_CA_Alloc_WriteAbs      : forall r1 r2, r1 <> r2 -> Disjoint_Computed_Actions (CA_AllocAbs r1) (CA_WriteAbs r2)
+ | D_CA_Alloc_WriteConc     : forall r1 r2 l2, r1 <> r2 -> Disjoint_Computed_Actions (CA_AllocAbs r1) (CA_WriteConc r2 l2).                                                                                     
 
 Inductive Disjoint_Sets_Computed_Actions : Ensemble (ComputedAction) -> Ensemble (ComputedAction) -> Prop :=
- | D_Set_CA  : forall d1 d2 theta1 theta2,
-                    set_elem theta1 d1 -> set_elem theta2 d2 -> Disjoint_Computed_Actions d1 d2 -> Disjoint_Sets_Computed_Actions theta1 theta2. 
+ | D_Set_CA   : forall theta1 theta2,
+                  (forall d1 d2,
+                     set_elem theta1 d1 ->
+                     set_elem theta2 d2 ->
+                     Disjoint_Computed_Actions d1 d2) ->
+                 Disjoint_Sets_Computed_Actions theta1 theta2.                                                
 
 Inductive Disjointness : Theta -> Theta -> Prop :=
- | D_Empty : forall theta , Disjointness (Some theta) Theta_Empty                                   
  | D_Theta  : forall theta1 theta2, Disjoint_Sets_Computed_Actions theta1 theta2 -> Disjointness (Some theta1) (Some theta2).
 
-Axiom Disjointness_Refl : forall theta1 theta2, Disjointness theta1 theta2 -> Disjointness theta2 theta1.
+Axiom Disjointness_Sym : forall theta1 theta2, Disjointness theta1 theta2 -> Disjointness theta2 theta1.
+
+Inductive Conflict_Dynamic_Actions : DynamicAction -> DynamicAction -> Prop :=
+| D_Read_Write : forall r l v (a : DynamicAction),
+                   Conflict_Dynamic_Actions ( DA_Read r l v) (DA_Write r l v)
+| D_Write_Write : forall r l v (a : DynamicAction),
+              Conflict_Dynamic_Actions ( DA_Write r l v) (DA_Write r l v).                                            
+
+Inductive Conflict_Traces : Trace -> Trace -> Prop :=
+ | C_Trace_DA : forall p1 p2 phi1 phi2,
+                  In p1 phi1 ->
+                  In p2 phi2 ->
+                  Conflict_Dynamic_Actions p1 p2 ->
+                  Conflict_Traces phi1 phi2.
 
 Inductive Conflict_Computed_Actions : ComputedAction -> ComputedAction -> Prop :=
- | C_Write : forall r l (d : ComputedAction),
-                  d = CA_ReadConc r l \/ d = CA_WriteConc r l ->
-                  d = CA_ReadAbs r \/ d = CA_WriteConc r l ->
-                  d = CA_ReadConc r l \/ d = CA_WriteAbs r ->
-                  d = CA_ReadAbs r \/ d = CA_WriteAbs r -> Conflict_Computed_Actions d (CA_WriteConc r l).  
-
-Axiom Conflict_Computed_Actions_Refl :
-  forall ca1 ca2, Conflict_Computed_Actions ca1 ca2 -> Conflict_Computed_Actions ca2 ca1.
+| C_WriteConc_ReadConc : forall r l, Conflict_Computed_Actions  (CA_ReadConc r l) ( CA_WriteConc r l)
+| C_WriteAbs_ReadConc : forall r l, Conflict_Computed_Actions  (CA_ReadConc r l) ( CA_WriteAbs r)                                                  | C_ReadAbs_WriteConc : forall r l, Conflict_Computed_Actions  (CA_ReadAbs r) ( CA_WriteConc r l)
+| C_WriteAbs_ReadAbs : forall r, Conflict_Computed_Actions  (CA_ReadAbs r) ( CA_WriteAbs r)
+| C_WriteAbs_WriteAbs : forall r, Conflict_Computed_Actions  (CA_WriteAbs r) ( CA_WriteAbs r)
+| C_WriteAbs_WriteConc : forall r l, Conflict_Computed_Actions  (CA_WriteAbs r) ( CA_WriteConc r l)
+| C_WriteConc_WriteAbs : forall r l, Conflict_Computed_Actions (CA_WriteConc r l) (CA_WriteAbs r)
+| C_WriteConc_WriteConc : forall r l, Conflict_Computed_Actions (CA_WriteConc r l) (CA_WriteConc r l)
+| C_WriteConc_ReadAbs : forall r l, Conflict_Computed_Actions (CA_WriteConc r l) (CA_ReadAbs r).
 
 Inductive Conflict_Sets_Computed_Actions : Ensemble (ComputedAction) -> Ensemble (ComputedAction) -> Prop :=
- | C_Set_CA  : forall d1 d2 theta1 theta2,
-                    set_elem theta1 d1 -> set_elem theta2 d2 -> Conflict_Computed_Actions d1 d2 -> Conflict_Sets_Computed_Actions theta1 theta2. 
+ | C_Set_CA  : forall theta1 theta2,
+                 forall d1 d2,
+                    set_elem theta1 d1 ->
+                    set_elem theta2 d2 -> Conflict_Computed_Actions d1 d2 ->
+                 Conflict_Sets_Computed_Actions theta1 theta2. 
 
 Inductive Conflictness : Theta -> Theta -> Prop :=
- | C_Top    : forall theta, Conflictness theta Theta_Top
+ | C_TopL : forall theta2, Conflictness None theta2
+ | C_TopR : forall theta1, Conflictness theta1 None
  | C_Theta  : forall theta1 theta2,
-                 Conflict_Sets_Computed_Actions theta1 theta2  -> Conflictness (Some theta1) (Some theta2).                                                                                                               
+                 Conflict_Sets_Computed_Actions theta1 theta2 -> Conflictness (Some theta1) (Some theta2).
+
+Axiom Conflictness_Sym : forall theta1 theta2, ~ Conflictness theta1 theta2 -> ~ Conflictness theta2 theta1.
 
 Module H := FMapAVL.Make (RegionVars).
  
@@ -267,39 +325,95 @@ Inductive Phi_Theta_Soundness : Phi -> Theta -> Prop :=
       Phi_Par phi1 phi2 ⊑ theta
 where "phi '⊑' theta" := (Phi_Theta_Soundness phi theta) : type_scope.
 
-Inductive Atom_Heap : (DynamicAction * Heap * Heap) -> Prop :=
-| PH_Alloc : forall r l v heap, Atom_Heap (DA_Alloc r l v, heap, update_H ((r,l), v) heap)
-| PH_Read : forall r l v heap, find_H (r,l) heap = Some v -> Atom_Heap (DA_Read r l v, heap, heap)                                                
-| PH_Write : forall r l v heap, find_H (r,l) heap = Some v -> Atom_Heap (DA_Write r l v, heap, update_H ((r, l), v) heap). 
+Reserved Notation "phi_heap '===>' phi'_heap'" (at level 50, left associativity).
+Inductive Phi_Heap_Step : (Phi * Heap) -> (Phi * Heap) -> Prop :=
+| PHS_Alloc  :  forall r l v heap,
+                 (Phi_Elem (DA_Alloc r l v), heap) ===> (Phi_Nil, update_H ((r,l), v) heap)
+| PHS_Read   :  forall r l v heap,
+                 find_H (r,l) heap = Some v ->
+                 (Phi_Elem (DA_Read r l v), heap) ===> (Phi_Nil, heap)
+| PHS_Write  :  forall r l v heap,
+                  H.In (r,l) heap ->
+                  (Phi_Elem (DA_Write r l v), heap) ===> (Phi_Nil, update_H ((r, l), v) heap)
+| PHS_Seq_1  : forall phi1 phi1' heap heap',
+                 (phi1, heap) ===> (phi1', heap') ->
+                 forall phi2, (Phi_Seq phi1 phi2, heap) ===> (Phi_Seq phi1' phi2, heap')
+| PHS_Seq_2  : forall phi2 phi2' heap heap',
+                 (phi2, heap) ===> (phi2', heap') ->
+                 (Phi_Seq Phi_Nil phi2, heap) ===> (Phi_Seq Phi_Nil phi2', heap')
+| PHS_Seq_3  : forall heap,
+                 (Phi_Seq Phi_Nil Phi_Nil, heap) ===> (Phi_Nil, heap)
+| PHS_Par_1  : forall phi1 phi1' heap heap',
+                 (phi1, heap) ===> (phi1', heap') ->
+                 forall phi2, (Phi_Par phi1 phi2, heap) ===> (Phi_Par phi1' phi2, heap')
+| PHS_Par_2  : forall phi2 phi2' heap heap',
+                 (phi2, heap) ===> (phi2', heap') ->
+                 forall phi1, (Phi_Par phi1 phi2, heap) ===> (Phi_Par phi1 phi2', heap')
+| PHS_Par_3  : forall heap, 
+                 (Phi_Par Phi_Nil Phi_Nil, heap) ===> (Phi_Nil, heap)   
+where "phi_heap '===>' phi'_heap'" := (Phi_Heap_Step phi_heap phi'_heap') : type_scope.
 
-Inductive Phi_Heap : (Phi * Heap) -> (Phi * Heap) -> Prop :=
-| PH_Nil    : forall heap,
-                Phi_Heap (Phi_Nil, heap) (Phi_Nil, heap)
-| PH_Atom   : forall i heap heap',
-                Atom_Heap (i, heap, heap') ->
-                forall phi, Phi_Heap (Phi_Seq (Phi_Elem i) phi, heap)  (phi, heap') 
-| PH_Seq_1  : forall phi1 phi1' heap heap',
-                Phi_Heap (phi1, heap) (phi1', heap') ->
-                forall phi2, Phi_Heap (Phi_Seq phi1 phi2, heap)  (Phi_Seq phi1' phi2, heap')
-| PH_Seq_2  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                forall phi1, Phi_Heap (Phi_Seq phi1 phi2, heap)  (Phi_Seq phi1 phi2', heap')
-| PH_Seq_3  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                Phi_Heap (Phi_Seq Phi_Nil phi2, heap)  (Phi_Seq Phi_Nil phi2', heap')
-| PH_Seq_4  : forall heap,
-                Phi_Heap (Phi_Seq Phi_Nil Phi_Nil, heap)  (Phi_Par Phi_Nil Phi_Nil, heap)
-| PH_Par_1  : forall phi1 phi1' heap heap',
-                Phi_Heap (phi1, heap) (phi1', heap') ->
-                forall phi2, Phi_Heap (Phi_Par phi1 phi2, heap)  (Phi_Par phi1' phi2, heap')
-| PH_Par_2  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                forall phi1, Phi_Heap (Phi_Par phi1 phi2, heap)  (Phi_Par phi1 phi2', heap')
-| PH_Par_3  : forall phi2 phi2' heap heap',
-                Phi_Heap (phi2, heap) (phi2', heap') ->
-                Phi_Heap (Phi_Par Phi_Nil phi2, heap)  (Phi_Par Phi_Nil  phi2', heap')
-| PH_Par_4  : forall heap,
-                Phi_Heap (Phi_Par Phi_Nil Phi_Nil, heap)  (Phi_Par Phi_Nil Phi_Nil, heap). 
+Module HMapP := FMapFacts.Facts H.
+
+Lemma monotonic_heap_updates:
+  forall phi heap phi' heap',
+     (phi, heap) ===> (phi', heap') ->
+     forall r l,
+       H.In (r, l) heap ->
+       H.In (r, l) heap'.
+Proof.
+  intros phi heap phi' heap' H.
+  dependent induction H; intros.
+  - destruct (RegionVars.eq_dec (r0, l0) (r, l)).
+    + apply HMapP.add_in_iff. left. simpl. inversion e. intuition.
+    + apply HMapP.add_neq_in_iff.
+      * intro. apply n. unfold RegionVars.eq. intuition.
+      * assumption.
+  - assumption.
+  - destruct (RegionVars.eq_dec (r0, l0) (r, l)).
+     + apply HMapP.add_in_iff. left. simpl. inversion e. intuition.
+    + apply HMapP.add_neq_in_iff.
+      * intro. apply n. unfold RegionVars.eq. intuition.
+      * assumption.
+  - apply IHPhi_Heap_Step. assumption.
+  - apply IHPhi_Heap_Step. assumption.
+  - assumption.
+  - apply IHPhi_Heap_Step. assumption.
+  - apply IHPhi_Heap_Step. assumption.
+  - assumption.
+Qed.    
+    
+      
+Reserved Notation "phi_heap '=a=>*' phi'_heap'_n'" (at level 50, left associativity).
+Inductive Phi_Heap_StepsAux : (Phi * Heap) -> (Phi * Heap * nat) -> Prop :=
+| PHT_Refl : forall phi heap,
+               (phi, heap) =a=>* (phi, heap, 0)
+| PHT_Step : forall phi phi' heap heap',
+               (phi, heap) ===> (phi', heap') ->
+               (phi, heap) =a=>* (phi', heap', 1)
+| PHT_Trans : forall phi phi' phi'' heap heap' heap'' n' n'',
+               (phi, heap) =a=>* (phi', heap', n') ->
+               (phi', heap') =a=>* (phi'', heap'', n'') ->
+               (phi, heap) =a=>* (phi'', heap'', (1 + n' + n'')%nat)
+
+where "phi_heap '=a=>*' phi'_heap'_n'" := (Phi_Heap_StepsAux phi_heap phi'_heap'_n') : type_scope.
+
+Reserved Notation "phi_heap '==>*' phi'_heap'" (at level 50, left associativity).
+Definition Phi_Heap_Steps phi_heap phi'_heap' :=
+  exists n',
+    match phi'_heap' with | (phi', heap') => phi_heap =a=>* (phi', heap', n') end.
+Notation "phi_heap '==>*' phi'_heap'" := (Phi_Heap_Steps phi_heap phi'_heap') : type_scope.
+
+Inductive Det_Trace : Phi -> Prop :=
+| DET_Empty : Det_Trace (Phi_Nil)
+| DET_Elem  : forall da, Det_Trace (Phi_Elem da)
+| DET_Seq   : forall phi1 phi2, Det_Trace phi1 -> Det_Trace phi2 -> Det_Trace (Phi_Seq phi1 phi2)
+| DET_Par   : forall phi1 phi2, Det_Trace phi1 ->
+                                Det_Trace phi2 ->
+                                not (Conflict_Traces (phi_as_list phi1) (phi_as_list phi2)) /\
+                                Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+                                Det_Trace (Phi_Par phi1 phi2). 
+
 
 Reserved Notation "e '⇓' n" (at level 50, left associativity).
 Inductive BigStep   : (Heap * Env * Rho * Expr) -> (Heap * Val * Phi) -> Prop:=
@@ -332,19 +446,19 @@ Inductive BigStep   : (Heap * Env * Rho * Expr) -> (Heap * Val * Phi) -> Prop:=
                         (heap, update_rec_E (f, Cls (env', rho', Mu f x ec' ee')) (x, v') env', rho', ee') ⇓ (heap, v, bacts) ->
                         (heap, env, rho, Eff_App ef ea) ⇓ (heap, v, Phi_Seq (Phi_Seq facts aacts) bacts)
   | BS_Pair_Par   : forall env rho ea1 ef1 ea2 ef2 v1 v2 theta1 theta2
-                           (heap heap_mu1 heap_mu2 heap_a heap_b : Heap) (acts_mu1 acts_mu2 acts_eff1 acts_eff2 : Phi),
+                           (heap heap_mu1 heap_mu2 heap' : Heap) (acts_mu1 acts_mu2 acts_eff1 acts_eff2 : Phi),
                         (heap, env, rho, Eff_App ef1 ea1) ⇓ (heap, Eff theta1, acts_eff1) ->
                         (heap, env, rho, Eff_App ef2 ea2) ⇓ (heap, Eff theta2, acts_eff2) ->
+                        ReadOnlyPhi acts_eff1 ->
+                        ReadOnlyPhi acts_eff2 ->
                         Disjointness theta1 theta2 /\ not (Conflictness theta1 theta2) ->
                         (heap, env, rho, Mu_App ef1 ea1) ⇓ (heap_mu1, Num v1, acts_mu1) ->
                         (heap, env, rho, Mu_App ef2 ea2) ⇓ (heap_mu2, Num v2, acts_mu2) ->
                         acts_mu1 ⊑ theta1 ->
                         acts_mu2 ⊑ theta2 -> 
-                        Phi_Heap (Phi_Par acts_mu1 acts_mu2, heap)  (Phi_Par Phi_Nil Phi_Nil, heap_a) ->
-                        Phi_Heap (Phi_Seq acts_mu1 acts_mu2, heap)  (Phi_Seq Phi_Nil Phi_Nil, heap_b) ->
-                        heap_a = heap_b ->
+                        (Phi_Par acts_mu1 acts_mu2, heap) ==>* (Phi_Nil, heap') ->
                         (heap, env, rho, Pair_Par ef1 ea1 ef2 ea2) 
-                           ⇓ (heap_b, Pair (v1, v2), Phi_Seq (Phi_Par acts_eff1 acts_eff2) (Phi_Par acts_mu1 acts_mu2))
+                           ⇓ (heap', Pair (v1, v2), Phi_Seq (Phi_Par acts_eff1 acts_eff2) (Phi_Par acts_mu1 acts_mu2))
   | BS_Cond_True  : forall e et ef env rho v (heap cheap theap : Heap) (cacts tacts : Phi),
                         (heap, env, rho, e) ⇓ (cheap, (Bit true), cacts) -> 
                         (cheap, env, rho, et) ⇓ (theap, v, tacts) -> 
