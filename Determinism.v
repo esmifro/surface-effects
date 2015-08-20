@@ -220,421 +220,6 @@ Proof.
       apply Disjointness_app_app_and_l in HDisj; intuition.
   - assumption.
 Qed.
-  
-Lemma Par_Step_Alloc_Alloc :
-  forall phi1 r1 l1 v1 phi2 r2 l2 v2 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Alloc r1 l1 v1) ->
-    phi2 = Phi_Elem (DA_Alloc r2 l2 v2) ->
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA, exists heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r0, l0, v0) (update_H (r, l, v) heap0)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heap0)). repeat split. 
-  - inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H0; subst. unfold update_H in *. simpl in *.
-    inversion H0; subst. unfold update_H in *. simpl in *. 
-
-    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
-    + inversion e. unfold fst, snd in *; subst.
-      destruct H2. reflexivity.
-    + clear n. 
-      apply HMapP.Equal_mapsto_iff; intros. destruct k.
-      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst.
-        destruct H2. subst; reflexivity.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst.
-        destruct H2. subst; reflexivity.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1.
-        rewrite H_same_key_add_twice_1 in H1. rewrite H_same_key in H1.
-        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
-        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1; [| assumption].
-        { rewrite H_same_key in H1.  apply  HMapP.find_mapsto_iff.
-          inversion H1; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1; [| intuition].
-        apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_1. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_1 in H1.  
-        apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_2; [| intuition]. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-          - contradict n2. inversion n2. auto.
-          - contradict n1. inversion n1. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n2. inversion n2. auto.
-            + contradict n1. inversion n1. auto. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-          - contradict n1. inversion n1. auto.
-          - contradict n2. inversion n2. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n1. inversion n1. auto.
-            + contradict n2. inversion n2. auto. }
-  - do 2 constructor.    
-  - do 2 constructor.    
-Qed.
-
-Lemma Par_Step_Write_Write :
-  forall phi1 r1 l1 v1 phi2 r2 l2 v2 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Write r1 l1 v1) ->
-    phi2 = Phi_Elem (DA_Write r2 l2 v2) ->
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA, exists heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r0, l0, v0) (update_H (r, l, v) heap0)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heap0)). repeat split. 
-  - inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. unfold update_H in *. simpl in *.
-    inversion H1; subst. unfold update_H in *. simpl in *. 
-    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
-    + inversion e. unfold fst, snd in *; subst.
-      inversion H1; subst. contradict H5. intuition.
-    + clear n. 
-      apply HMapP.Equal_mapsto_iff; intros. destruct k.
-      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst.
-        inversion H1; subst. contradict H5. intuition.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst.
-        inversion H1; subst. contradict H5. intuition.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H2.
-        rewrite H_same_key_add_twice_1 in H2. rewrite H_same_key in H2.
-        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
-        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_2 in H2.
-        { rewrite H_same_key in H2.  apply  HMapP.find_mapsto_iff.
-          inversion H2; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
-        { contradict n1. inversion n1. intuition. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_2 in H2.
-        { apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_1. assumption. }
-        { contradict n1. inversion n1. intuition. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_1 in H2.  
-        apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_2; [assumption |].
-        contradict n1. inversion n1. intuition.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H2.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-          - contradict n2. inversion n2. auto.
-          - contradict n1. inversion n1. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n2. inversion n2. auto.
-            + contradict n1. inversion n1. auto. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H2.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-          - contradict n1. inversion n1. auto.
-          - contradict n2. inversion n2. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n1. inversion n1. auto.
-            + contradict n2. inversion n2. auto. }
-  - do 2 constructor.
-    inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. apply HMapP.add_neq_in_iff; auto. simpl. intuition.
-    (*apply H_diff_key_2; [intuition | assumption].*)
-  - do 2 constructor.
-    inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. apply HMapP.add_neq_in_iff; auto. simpl. intuition.
-    (*apply H_diff_key_2; [intuition | assumption].*)
-Qed.
-
-Lemma Par_Step_Alloc_Read :
-  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Alloc r l v) ->
-    phi2 = Phi_Elem (DA_Read r0 l0 v0) -> 
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r, l, v) heap2'); exists (update_H (r, l, v) heap2'); repeat split.
-  - constructor.  constructor.
-    inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Read r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H0; subst. eapply H_diff_key_2; eauto.
-  - constructor. constructor.
-Qed.
-
-Lemma Par_Step_Write_Read :
-  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Write r l v) ->
-    phi2 = Phi_Elem (DA_Read r0 l0 v0) -> 
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r, l, v) heap2'); exists (update_H (r, l, v) heap2'); repeat split.
-  - constructor.  constructor.
-    inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Read r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. eapply H_diff_key_2; eauto.
-  - constructor. constructor. assumption.
-Qed.
-
-Lemma Par_Step_Read_Alloc :
-  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Read r l v) ->
-    phi2 = Phi_Elem (DA_Alloc r0 l0 v0) -> 
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r0, l0, v0) heap1'); exists (update_H (r0, l0, v0) heap1'); repeat split.
-  - inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. constructor. constructor.
-  - do 2 constructor. inversion HStep2; subst.
-    inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst.
-    eapply H_diff_key_2; auto.
-Qed.
-
-Lemma Par_Step_Read_Write :
-  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Read r l v) ->
-    phi2 = Phi_Elem (DA_Write r0 l0 v0) -> 
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r0, l0, v0) heap1'); exists (update_H (r0, l0, v0) heap1'); repeat split.
-  - inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. do 2 constructor. assumption.
-  - do 2 constructor. inversion HStep2; subst.
-    inversion HDisj; subst. simpl in H. 
-    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H2; subst.
-    eapply H_diff_key_2; auto.
-Qed.
-
-Lemma Par_Step_Alloc_Write :
-  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Alloc r l v) ->
-    phi2 = Phi_Elem (DA_Write r0 l0 v0) -> 
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r0, l0, v0) (update_H (r, l, v) heap0)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heap0)). repeat split.
-  - inversion HDisj; subst. simpl in H.
-    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H0; subst. unfold update_H in *. simpl in *. 
-
-    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
-    + inversion e. unfold fst, snd in *; subst.
-      destruct H2. reflexivity.
-    + clear n. 
-      apply HMapP.Equal_mapsto_iff; intros. destruct k.
-      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst.
-        destruct H2. subst; reflexivity.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst.
-        destruct H2. subst; reflexivity.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_1 in H1. rewrite H_same_key in H1.
-        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
-        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1; [| assumption].
-        { rewrite H_same_key in H1.  apply  HMapP.find_mapsto_iff.
-          inversion H1; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1; [| intuition].
-        apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_1. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_1 in H1.  
-        apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_2; [| intuition]. assumption. 
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-           - contradict n2. inversion n2. auto.
-          - contradict n1. inversion n1. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n2. inversion n2. auto.
-            + contradict n1. inversion n1. auto. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H1.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-          - contradict n1. inversion n1. auto.
-          - contradict n2. inversion n2. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n1. inversion n1. auto.
-            + contradict n2. inversion n2. auto. }
-  - constructor. constructor.
-    inversion HDisj; subst. simpl in H.
-    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H0; subst. unfold update_H in *. simpl in *.
-    inversion HStep2.
-    apply HMapP.add_neq_in_iff; auto. simpl. intuition.
-    (*apply  H_diff_key_2; assumption.*)
-  - do 2 constructor.    
-Qed.        
-
-Lemma Par_Step_Write_Alloc :
-  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2',
-    phi1 = Phi_Elem (DA_Write r l v) ->
-    phi2 = Phi_Elem (DA_Alloc r0 l0 v0) -> 
-    Det_Trace phi1 ->
-    Det_Trace phi2 ->
-    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
-    (phi1, heap0) ===> (phi1', heap1') ->
-    (phi2, heap0) ===> (phi2', heap2') ->
-    exists heapA heapB,
-      H.Equal heapA heapB /\
-      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
-      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
-Proof.
-  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heap0 heap1' heap2'
-          H1 H2 Det1 HDet2 HDisj HConf HStep1 HStep2; subst.
-  inversion HStep1; inversion HStep2; subst.
-  exists (update_H (r0, l0, v0) (update_H (r, l, v) heap0)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heap0)). repeat split.
-  - inversion HDisj; subst. simpl in H.
-    assert (Disjoint_Dynamic (DA_Write r l v)  (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H0; subst. unfold update_H in *. simpl in *. 
-
-    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
-    + inversion e. unfold fst, snd in *; subst.
-      inversion H1; subst.  contradict H4. intuition.
-    + clear n. 
-      apply HMapP.Equal_mapsto_iff; intros. destruct k.
-      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
-      * inversion e0; inversion e1.  unfold fst, snd in *; subst. rewrite H6 in *. rewrite H5 in *.
-        inversion H1; subst. contradict H4. intuition.
-      * inversion e0; inversion e1. unfold fst, snd in *; subst. rewrite H6 in H1. rewrite H5 in H1.
-        inversion H1; subst. contradict H4. intuition.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H3. rewrite H_same_key_add_twice_1 in H3. rewrite H_same_key in H3.
-        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
-        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H3. rewrite H_same_key_add_twice_2 in H3.
-        { rewrite H_same_key in H3.  apply  HMapP.find_mapsto_iff.
-          inversion H3; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
-        { contradict n1. inversion n1. intuition. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H3. rewrite H_same_key_add_twice_2 in H3.
-        { apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_1. assumption. }
-        {  contradict n1. inversion n1. intuition. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
-        intro. apply  HMapP.find_mapsto_iff in H3. rewrite H_same_key_add_twice_1 in H3.  
-        apply  HMapP.find_mapsto_iff. rewrite H_same_key_add_twice_2; [ assumption | ].
-        contradict n1. inversion n1. intuition.
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H3.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-           - contradict n2. inversion n2. auto.
-          - contradict n1. inversion n1. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n2. inversion n2. auto.
-            + contradict n1. inversion n1. auto. }
-      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
-        intro. apply  HMapP.find_mapsto_iff in H3.
-        apply  HMapP.find_mapsto_iff.
-        { eapply H_diff_key_add_comm_2.
-          - contradict n1. inversion n1. auto.
-          - contradict n2. inversion n2. auto.
-          - eapply  H_diff_key_add_comm_1; eauto.
-            + contradict n1. inversion n1. auto.
-            + contradict n2. inversion n2. auto. }
-  - do 2 constructor.            
-  - constructor. constructor.
-    inversion HDisj; subst. simpl in H.
-    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
-    inversion H1; subst. unfold update_H in *. simpl in *.
-    inversion HStep2.
-    apply HMapP.add_neq_in_iff; auto. simpl. intuition.
-    (*apply  H_diff_key_2; assumption.*)
-Qed.
 
 Lemma Disjointness_Preserves_Update_Alloc:
   forall phi1 phi1' heap heap' r l v, 
@@ -754,6 +339,600 @@ Proof.
   - exists (update_H (r, l, v) heap'). split; [apply HMapP.Equal_refl | constructor ].
 Qed.
 
+Lemma Aux_Aux_Step_Ext_Heap :
+forall phi heapA heapB phi' heapA',
+   (phi, heapA) ===> (phi', heapA') ->
+   H.Equal heapA heapB ->
+   exists heapB',
+     H.Equal heapA' heapB' /\
+     (phi, heapB) ===> (phi', heapB').
+Proof.
+  intros phi heapA heapB phi' heapA' HStep.
+  generalize dependent heapB.
+  dependent induction HStep; intros heapB HEqual.
+  - { exists (update_H (r, l, v) heapB). split.
+      - unfold H.Equal in *; unfold update_H in *; simpl in *.
+        intros [r' l'].
+        destruct (RegionVars.eq_dec (r', l') (r, l)).
+        * inversion_clear e; simpl in *; subst.
+          do 2 rewrite H_same_key_1. reflexivity.
+        * unfold RegionVars.eq in *; simpl in *.
+          rewrite HMapP.add_neq_o by (contradict n; intuition).
+          rewrite HMapP.add_neq_o by (contradict n; intuition).
+          apply HEqual.
+      - constructor. }
+  - { exists heapB. split.
+      - assumption.
+      - constructor.
+        unfold find_H in *. unfold H.Equal in HEqual.
+        rewrite <- H. symmetry. apply HEqual. }
+  - { exists (update_H (r, l, v) heapB). split.
+      - unfold H.Equal in *; unfold update_H in *; simpl in *.
+        intros [r' l'].
+        destruct (RegionVars.eq_dec (r', l') (r, l)).
+        * inversion_clear e; simpl in *; subst.
+          do 2 rewrite H_same_key_1. reflexivity.
+        * unfold RegionVars.eq in *; simpl in *.
+          rewrite HMapP.add_neq_o by (contradict n; intuition).
+          rewrite HMapP.add_neq_o by (contradict n; intuition).
+          apply HEqual.
+      - constructor.
+        eapply Heap.HMapP.In_m; eauto using HMapP.Equal_sym. }
+  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
+    exists heapB'; split; [assumption | constructor; auto].
+  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
+    exists heapB'; split; [assumption | constructor; auto].
+  - exists heapB; split; [assumption | constructor].
+  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
+    exists heapB'; split; [assumption | constructor; auto].
+  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
+    exists heapB'; split; [assumption | constructor; auto].
+  - exists heapB; split; [assumption | constructor].
+Qed.
+
+Lemma Aux_Step_Ext_Heap :
+forall phi heapA heapB phi' heapA' n',
+   (phi, heapA) =a=>* (phi', heapA', n') ->
+   H.Equal heapA heapB ->
+   exists heapB',
+     H.Equal heapA' heapB' /\
+     (phi, heapB) =a=>* (phi', heapB', n').
+Proof.
+  intros  phi heapA heapB phi' heapA' n' H1 H2 .  
+  generalize dependent heapB. 
+  dependent induction H1; intros.
+  - { exists heapB. intuition. constructor. }
+  - edestruct Aux_Aux_Step_Ext_Heap as [heapB' [? ?]]; eauto.
+    exists heapB'; split; [assumption | constructor; assumption].
+  - edestruct (IHPhi_Heap_StepsAux1 heapB H2) as [heap1 [? ?]].
+    edestruct (IHPhi_Heap_StepsAux2 heap1 H) as [heap2 [? ?]].
+    exists heap2. intuition.
+    replace (S (n'0 + n'')) with (1 + n'0 + n'') by (simpl; reflexivity).
+    econstructor. eassumption. assumption.
+Qed.
+
+Lemma Par_Step_Alloc_Alloc :
+  forall phi1 r1 l1 v1 phi2 r2 l2 v2 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Alloc r1 l1 v1) ->
+    phi2 = Phi_Elem (DA_Alloc r2 l2 v2) ->
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA, exists heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst.
+  exists (update_H (r0, l0, v0) (update_H (r, l, v) heapa)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heapb)). repeat split. 
+  - inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H0; subst. unfold update_H in *. simpl in *.
+    inversion H0; subst. unfold update_H in *. simpl in *. 
+
+    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
+    + inversion e. unfold fst, snd in *; subst.
+      destruct H2. reflexivity.
+    + clear n. 
+      apply HMapP.Equal_mapsto_iff; intros. destruct k.
+      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
+      * inversion e0; inversion e1. unfold fst, snd in *; subst.
+        destruct H2. subst; reflexivity.
+      * inversion e0; inversion e1. unfold fst, snd in *; subst.
+        destruct H2. subst; reflexivity.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1.
+        rewrite H_same_key_add_twice_1 in H1. rewrite H_same_key in H1.
+        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
+        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst. 
+        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1; [| assumption].
+        { rewrite H_same_key in H1.  apply  HMapP.find_mapsto_iff.
+          inversion H1; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.  
+        intro. apply HMapP.add_mapsto_iff. left. simpl. split; auto.   
+        apply  HMapP.find_mapsto_iff in H1.  rewrite H_same_key_add_twice_2 in H1; [| intuition].
+        rewrite HMapP.add_o in H1. 
+        destruct (HMapP.eq_dec (r, l) (r, l)) in H1. 
+        { inversion H1; subst. auto.  }
+        { simpl in *. contradict n. auto. } 
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst. 
+        intro.  apply HMapP.add_mapsto_iff. right. split; simpl; [intuition |].
+        apply HMapP.add_mapsto_iff. left; simpl; split; auto.
+        apply HMapP.add_mapsto_iff in H1.
+        destruct H1 as [[? ?]| ?]; [assumption | destruct H1 as [? ?  ?]; contradict H1; auto].
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n2. inversion n2. auto.
+          - contradict n1. inversion n1. auto.
+          - apply H_diff_key_2.
+            + contradict n2. inversion n2. auto.
+            + rewrite <- H1. unfold H.Equal in HEqual. rewrite <- HEqual.
+              rewrite H1. apply H_diff_key_1 in H1.
+              * apply H_diff_key_1 in H1; [assumption | contradict n1; inversion n1; intuition].
+              * contradict n1; inversion n1; intuition.
+        }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n1. inversion n1. auto.
+          - contradict n2. inversion n2. auto.
+          - apply H_diff_key_2.
+            + contradict n1. inversion n1. auto.
+            + rewrite <- H1. unfold H.Equal in HEqual. rewrite HEqual.
+              rewrite H1. apply H_diff_key_1 in H1.
+              * apply H_diff_key_1 in H1; [assumption | contradict n1; inversion n1; intuition].
+              * contradict n1; inversion n1; intuition.
+        }
+  - do 2 constructor.    
+  - econstructor. inversion HDisj; subst.
+    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Alloc r0 l0 v0)) by (apply H; simpl; auto).
+    inversion H0; subst. 
+    eapply Disjointness_Preserves_Update_Alloc in HStep2; eauto.
+    destruct HStep2 as [heap' [? ?]]. inversion H0; subst. unfold H.Equal in H1.
+    inversion H3; subst.
+    unfold update_H in *; simpl in *.
+    admit.  
+Qed.
+
+Lemma Par_Step_Write_Write :
+  forall phi1 r1 l1 v1 phi2 r2 l2 v2 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Write r1 l1 v1) ->
+    phi2 = Phi_Elem (DA_Write r2 l2 v2) ->
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA, exists heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst.
+  exists (update_H (r0, l0, v0) (update_H (r, l, v) heapa)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heapb)). repeat split. 
+  -  inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H1; subst. unfold update_H in *. simpl in *.
+    inversion H1; subst. unfold update_H in *. simpl in *. 
+    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
+    + inversion e. unfold fst, snd in *; subst.
+      inversion H1; subst. contradict H5. intuition.
+    + clear n. 
+      apply HMapP.Equal_mapsto_iff; intros. destruct k.
+      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
+      * inversion e0; inversion e1. unfold fst, snd in *; subst.
+        inversion H1; subst. contradict H5. intuition.
+      * inversion e0; inversion e1. unfold fst, snd in *; subst.
+        inversion H1; subst. contradict H5. intuition.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2.
+        rewrite H_same_key_add_twice_1 in H2. rewrite H_same_key in H2.
+        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
+        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_2 in H2.
+        { rewrite H_same_key in H2.  apply  HMapP.find_mapsto_iff.
+          inversion H2; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
+        { contradict n1. inversion n1. intuition. }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_2 in H2.
+        { apply HMapP.add_mapsto_iff. left. simpl. split; auto.
+          rewrite HMapP.add_o in H2. 
+          destruct (HMapP.eq_dec (r, l) (r, l)) in H2;
+          [inversion H2; subst;  reflexivity |  simpl in n; contradict n; auto]. }
+        { contradict n1. inversion n1. intuition. }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_1 in H2. apply  HMapP.find_mapsto_iff in H2.  
+        apply  HMapP.find_mapsto_iff.
+        apply H_diff_key_2; [contradict H3; assumption | ].
+        apply HMapP.find_mapsto_iff.
+        apply HMapP.add_mapsto_iff. left; simpl. split; auto.
+        apply HMapP.add_mapsto_iff in H2.
+        destruct H2 as [ [ ?  ?] | [? ?] ]; [assumption | contradict H2; intuition]. 
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n2. inversion n2. auto.
+          - contradict n1. inversion n1. auto.
+          - apply H_diff_key_2.
+            + contradict n2. inversion n2. auto.
+            + unfold H.Equal in HEqual. rewrite <- HEqual.
+              apply H_diff_key_1 in H2.
+              * apply H_diff_key_1 in H2; [assumption | contradict n2; inversion n2; auto]. 
+              * contradict n1; inversion n1; auto.
+        }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n1. inversion n1. auto.
+          - contradict n2. inversion n2. auto.
+          - apply H_diff_key_2.
+            + contradict n1. inversion n1. auto.
+            +unfold H.Equal in HEqual. rewrite HEqual.
+              apply H_diff_key_1 in H2.
+              * apply H_diff_key_1 in H2; [assumption | contradict n1; inversion n1; intuition].
+              * contradict n1; inversion n1; intuition.
+        }        
+  - do 2 constructor.
+    inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H1; subst. apply HMapP.add_neq_in_iff; auto; [simpl; intuition | ].
+    apply HMapP.Equal_Equiv in HEqual. inversion HEqual. apply H2. assumption.
+  - do 2 constructor.
+    inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H1; subst. apply HMapP.add_neq_in_iff; auto; [simpl; intuition | ].
+    apply HMapP.Equal_Equiv in HEqual. inversion HEqual. apply H2. assumption.
+Qed.
+
+Lemma Par_Step_Alloc_Read :
+  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Alloc r l v) ->
+    phi2 = Phi_Elem (DA_Read r0 l0 v0) -> 
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst.
+  edestruct Aux_Aux_Step_Ext_Heap as [heapB' [? ?]]; eauto. 
+  exists (update_H (r, l, v) heapa); exists heapB'; repeat split.
+  - assumption.
+  - do 2 constructor.
+    inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Read r0 l0 v0)) by (apply H1; left; reflexivity).
+    inversion H2; subst. eapply H_diff_key_2; eauto.
+    unfold H.Equal in HEqual. rewrite HEqual. assumption.
+  - constructor. assumption.
+Qed.
+
+Lemma Par_Step_Write_Read :
+  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Write r l v) ->
+    phi2 = Phi_Elem (DA_Read r0 l0 v0) -> 
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst.
+  edestruct Aux_Aux_Step_Ext_Heap as [heapB' [? ?]]; eauto. 
+  exists (update_H (r, l, v) heapa); exists heapB'; repeat split.
+  - assumption.
+  - do 2 constructor. 
+    inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Read r0 l0 v0)) by (apply H2; left; reflexivity).
+    inversion H3; subst. eapply H_diff_key_2; eauto.
+    unfold H.Equal in HEqual. rewrite HEqual. assumption.
+  - constructor. assumption.
+Qed.
+
+Lemma Par_Step_Read_Alloc :
+  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Read r l v) ->
+    phi2 = Phi_Elem (DA_Alloc r0 l0 v0) -> 
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst. 
+  edestruct Aux_Aux_Step_Ext_Heap as [heapB' [? ?]]; eauto.
+  apply HMapP.Equal_sym in HEqual. assert (H.Equal heapb heapB') by (eapply HMapP.Equal_trans; eauto).
+  exists (update_H (r0, l0, v0) heap1'); exists (update_H (r0, l0, v0) heapb); repeat split.
+  - unfold H.Equal; intros [r1 l1]. apply HMapP.Equal_sym in HEqual. unfold H.Equal in HEqual.
+    destruct (RegionVars.eq_dec (r1, l1) (r0, l0));  unfold update_H; simpl.
+    + inversion e; simpl in *; subst. rewrite H_same_key. rewrite H_same_key. reflexivity.
+    + unfold RegionVars.eq in n.  simpl in n.
+      rewrite HMapP.add_neq_o.
+      * rewrite HMapP.add_neq_o; simpl; [apply HEqual | contradict n; intuition].
+      * contradict n; intuition.
+  - inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Alloc r0 l0 v0)) by (apply H3; left; reflexivity).
+    inversion H4; subst. constructor. constructor.
+  - do 2 constructor. inversion HStep2; subst.
+    inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Alloc r0 l0 v0)) by (apply H3; left; reflexivity).
+    inversion H4; subst.
+    eapply H_diff_key_2; auto.
+    unfold H.Equal in HEqual. rewrite HEqual. assumption.
+Qed.
+
+Lemma Par_Step_Read_Write :
+  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Read r l v) ->
+    phi2 = Phi_Elem (DA_Write r0 l0 v0) -> 
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst.
+  edestruct Aux_Aux_Step_Ext_Heap as [heapB' [? ?]]; eauto.
+  exists (update_H (r0, l0, v0) heap1'); exists (update_H (r0, l0, v0) heapb); repeat split.
+  -  unfold H.Equal; intros [r1 l1]. unfold H.Equal in HEqual.
+    destruct (RegionVars.eq_dec (r1, l1) (r0, l0));  unfold update_H; simpl.
+    + inversion e; simpl in *; subst. rewrite H_same_key. rewrite H_same_key. reflexivity.
+    + unfold RegionVars.eq in n.  simpl in n.
+      rewrite HMapP.add_neq_o.
+      * rewrite HMapP.add_neq_o; simpl; [apply HEqual | contradict n; intuition].
+      * contradict n; intuition.
+  - inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Write r0 l0 v0)) by (apply H2; left; reflexivity).
+    inversion H3; subst. constructor.  constructor.
+    apply HMapP.Equal_sym in HEqual.
+    apply HMapP.Equal_Equiv in HEqual. inversion HEqual. now apply HEqual.
+  - do 2 constructor. inversion HStep2; subst.
+    inversion HDisj; subst. simpl in H. 
+    assert (Disjoint_Dynamic (DA_Read r l v) (DA_Write r0 l0 v0)) by (apply H2; left; reflexivity).
+    inversion H4; subst.
+    eapply H_diff_key_2; auto. unfold H.Equal in HEqual. rewrite <- H0.
+    symmetry; apply HEqual.
+Qed.
+
+Lemma Par_Step_Alloc_Write :
+  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Alloc r l v) ->
+    phi2 = Phi_Elem (DA_Write r0 l0 v0) -> 
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst. 
+  exists (update_H (r0, l0, v0) (update_H (r, l, v) heapa)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heapb)). repeat split.
+  - inversion HDisj; subst. 
+    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H0; subst. unfold update_H in *. simpl in *. 
+    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
+    + inversion e. unfold fst, snd in *; subst.
+      contradict H2. intuition.
+    + clear n. 
+      apply HMapP.Equal_mapsto_iff; intros. destruct k.
+      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
+      * inversion e0; inversion e1. unfold fst, snd in *; do 2 subst. 
+        contradict H2. intuition.
+      * inversion e0; inversion e1. unfold fst, snd in *; do 2subst.
+        contradict H2. intuition.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1.
+        rewrite H_same_key_add_twice_1 in H1. rewrite H_same_key in H1.
+        apply HMapP.add_mapsto_iff. right. intuition. inversion H1; subst.
+        apply HMapP.find_mapsto_iff. apply H_same_key.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1.
+        rewrite H_same_key in H1.
+        apply HMapP.find_mapsto_iff. inversion H1. rewrite <- H4.
+        apply H_same_key. assumption.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_2 in H1.
+        { apply HMapP.add_mapsto_iff. left; simpl. split; auto.
+          rewrite HMapP.add_o in H1. 
+          destruct (HMapP.eq_dec (r, l) (r, l)) in H1; [inversion H1; subst |  simpl in n; contradict n; auto].
+          reflexivity.
+        }
+        { contradict n1. inversion n1. intuition. }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1. rewrite H_same_key_add_twice_1 in H1. 
+        apply  HMapP.find_mapsto_iff in H1.  
+        apply  HMapP.find_mapsto_iff. 
+        apply H_diff_key_2; [ contradict H2; auto | ].
+        apply HMapP.find_mapsto_iff.
+        apply HMapP.add_mapsto_iff. left; simpl. split; auto.
+        apply HMapP.add_mapsto_iff in H1.
+        destruct H1 as [ [ ?  ?] | [? ?] ]; [assumption | contradict H2; intuition]. 
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2. 
+          - contradict n1. inversion n1. intuition.
+          - contradict n2. inversion n2. intuition.
+          - apply H_diff_key_2.
+            + contradict n1. inversion n1. intuition.
+            + unfold H.Equal in HEqual. rewrite <- HEqual.
+              apply H_diff_key_1 in H1.
+              * apply H_diff_key_1 in H1; [assumption | contradict n2; inversion n2; auto]. 
+              * contradict n1; inversion n1; auto.
+        }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H1.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n1. inversion n1. auto.
+          - contradict n2. inversion n2. auto.
+          - apply H_diff_key_2.
+            + contradict n1. inversion n1. auto.
+            +unfold H.Equal in HEqual. rewrite HEqual.
+              apply H_diff_key_1 in H1.
+              * apply H_diff_key_1 in H1; [assumption | contradict n1; inversion n1; intuition].
+              * contradict n1; inversion n1; intuition.
+        }  
+  - inversion HDisj; subst.
+    assert (Disjoint_Dynamic (DA_Alloc r l v) (DA_Write r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H0; subst. unfold update_H in *. simpl in *. 
+    constructor. constructor.
+    apply HMapP.Equal_sym in HEqual. apply HMapP.Equal_Equiv in HEqual. inversion HEqual.
+    apply HEqual in H6. apply HMapP.add_neq_in_iff; intuition.
+  - inversion HDisj; subst. simpl in H. constructor. constructor.
+Qed.    
+
+Lemma Par_Step_Write_Alloc :
+  forall phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2',
+    phi1 = Phi_Elem (DA_Write r l v) ->
+    phi2 = Phi_Elem (DA_Alloc r0 l0 v0) -> 
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros  phi1 r l v phi2 r0 l0 v0 phi1' phi2' heapa heapb heap1' heap2'
+          H1 H2 Det1 HDet2 HDisj HConf HEqual HStep1 HStep2; subst.
+  inversion HStep1; inversion HStep2; subst. 
+  exists (update_H (r0, l0, v0) (update_H (r, l, v) heapa)). exists (update_H (r, l, v) (update_H (r0, l0, v0) heapb)). repeat split.
+  - inversion HDisj; subst. 
+    assert (Disjoint_Dynamic (DA_Write r l v) (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H1; subst. unfold update_H in *. simpl in *. 
+    destruct (RegionVars.eq_dec (r, l) (r0, l0)).
+    + inversion e. simpl in *. subst. contradict H3. reflexivity.
+    + clear n. 
+      apply HMapP.Equal_mapsto_iff; intros. destruct k. 
+      destruct (RegionVars.eq_dec (n, n0) (r0, l0)); destruct (RegionVars.eq_dec (n, n0) (r, l)); split.
+      * inversion e0; inversion e1.  unfold fst, snd in *; subst. rewrite H6 in *. rewrite H5 in *.
+        inversion H1; subst. contradict H4. intuition.
+      * inversion e0; inversion e1. unfold fst, snd in *; subst. rewrite H6 in H1. rewrite H5 in H1.
+        inversion H1; subst. contradict H4. intuition.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_1 in H2. rewrite H_same_key in H2.
+        apply HMapP.add_mapsto_iff. right; simpl. split; [ intuition | ].
+        apply HMapP.find_mapsto_iff. rewrite H_same_key. assumption.
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_2 in H2.
+        { rewrite H_same_key in H2.  apply  HMapP.find_mapsto_iff.
+          inversion H2; subst. rewrite H_same_key_add_twice_1. rewrite H_same_key. assumption. }
+        { contradict n1. inversion n1. intuition. }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_2 in H2. 
+        { apply HMapP.add_mapsto_iff. left; simpl. split; auto.
+          rewrite HMapP.add_o in H2. 
+          destruct (HMapP.eq_dec (r, l) (r, l)) in H2; [inversion H2; subst |  simpl in n; contradict n; auto].
+          reflexivity.
+        }
+        { contradict n1. inversion n1. intuition. }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst. destruct e0; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2. rewrite H_same_key_add_twice_1 in H2. 
+        apply  HMapP.find_mapsto_iff in H2.  
+        apply  HMapP.find_mapsto_iff. 
+        apply H_diff_key_2; [ contradict H2; auto | ].
+        apply HMapP.find_mapsto_iff.
+        apply HMapP.add_mapsto_iff. left; simpl. split; auto.
+        apply HMapP.add_mapsto_iff in H2.
+        destruct H2 as [ [ ?  ?] | [? ?] ]; [assumption | contradict H2; intuition]. 
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n2. inversion n2. auto.
+          - contradict n1. inversion n1. auto.
+          - apply H_diff_key_2.
+            + contradict n1. inversion n1. intuition.
+            + unfold H.Equal in HEqual. rewrite <- HEqual.
+              apply H_diff_key_1 in H2.
+              * apply H_diff_key_1 in H2; [assumption | contradict n2; inversion n2; auto]. 
+              * contradict n1; inversion n1; auto.
+        }
+      * unfold RegionVars.eq in *. unfold fst, snd in *; subst.
+        intro. apply  HMapP.find_mapsto_iff in H2.
+        apply  HMapP.find_mapsto_iff.
+        { eapply H_diff_key_add_comm_2.
+          - contradict n1. inversion n1. auto.
+          - contradict n2. inversion n2. auto.
+          - apply H_diff_key_2.
+            + contradict n1. inversion n1. auto.
+            +unfold H.Equal in HEqual. rewrite HEqual.
+              apply H_diff_key_1 in H2.
+              * apply H_diff_key_1 in H2; [assumption | contradict n1; inversion n1; intuition].
+              * contradict n1; inversion n1; intuition.
+        }
+  - inversion HDisj; subst. 
+    assert (Disjoint_Dynamic (DA_Write r l v)  (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H1; subst. unfold update_H in *. simpl in *.
+    constructor. constructor.
+  - constructor. constructor.
+    inversion HDisj; subst. 
+    assert (Disjoint_Dynamic (DA_Write r l v)  (DA_Alloc r0 l0 v0)) by (apply H; left; reflexivity).
+    inversion H1; subst. unfold update_H in *. simpl in *.
+    apply HMapP.Equal_sym in HEqual. apply HMapP.Equal_Equiv in HEqual. inversion HEqual.
+    apply HEqual in H0. apply HMapP.add_neq_in_iff; intuition.
+Qed.    
+    
 Lemma Phi_Heap_Step_Progress :
   forall phi heap heap',
     (phi, heap) ===> (phi, heap') ->
@@ -930,7 +1109,7 @@ Proof.
         - do 2 constructor; assumption.
         - constructor. constructor. assumption.  }            
     + { exists (update_H (r, l, v) heap2'). exists (update_H (r, l, v) heap2'); repeat split; do 2  constructor; assumption. }
-  - inversion HDet1; subst.
+  - inversion HDet1; subst. 
     edestruct (IHHStep1 H1 phi1 HDet2) as [heapA [heapB [? [? ?]]]].
     + simpl in HDisj. apply Disjointness_app_app_and_r in HDisj. destruct HDisj. assumption.
     + simpl in HConf. inversion HDet1.
@@ -993,6 +1172,393 @@ Proof.
      * constructor; constructor.
 Qed.
 
+Lemma Par_Step_Equal_new :
+   forall phi1 phi2 phi1' phi2' heapa heapb heap1' heap2',
+    Det_Trace phi1 ->
+    Det_Trace phi2 ->
+    Disjoint_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    ~ Conflict_Traces (phi_as_list phi1) (phi_as_list phi2) ->
+    H.Equal heapa heapb ->
+    (phi1, heapa) ===> (phi1', heap1') ->
+    (phi2, heapb) ===> (phi2', heap2') ->
+    exists heapA, exists heapB,
+      H.Equal heapA heapB /\
+      (Phi_Par phi1' phi2, heap1') ===> (Phi_Par phi1' phi2', heapA) /\
+      (Phi_Par phi1 phi2', heap2') ===> (Phi_Par phi1' phi2', heapB).
+Proof.
+  intros phi1 phi2 phi1' phi2' heapa heapb heap1' heap2' HDet1 HDet2 HDisj HConf HEqual HStep1 HStep2.
+  generalize dependent phi2.
+  dependent induction HStep1; intros.
+  - dependent destruction HStep2.  
+    + eapply Par_Step_Alloc_Alloc; eauto || econstructor.
+    + eapply Par_Step_Alloc_Read; eauto  || econstructor; assumption.
+    + eapply Par_Step_Alloc_Write; eauto || econstructor; assumption.
+    + apply HMapP.Equal_sym in HEqual. 
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+       as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Alloc in HStep2'; eauto.  
+      destruct HStep2' as [heapa' [? ?]]. 
+      { exists heapa'. exists (update_H (r, l, v) heap2'); repeat split. 
+        - unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            rewrite H1. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H1. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor. assumption.
+        - do 2 constructor. }
+    + apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+       as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      replace (phi_as_list (Phi_Seq Phi_Nil phi0)) with (phi_as_list Phi_Nil ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Alloc in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].
+      { exists x. exists (update_H (r, l, v) heap2'); repeat split.
+        - unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            rewrite H1. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H1. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor; assumption.
+        - do 2 constructor. }
+    + { exists (update_H (r, l, v) heapa). exists (update_H (r, l, v) heap2'); repeat split.
+        - unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l']. 
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite HEqual. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2  constructor.
+        - do 2 constructor. }
+    + apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+        as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Alloc in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].
+      { exists x. exists (update_H (r, l, v) heap2'); repeat split.
+        - unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            rewrite H1. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H1. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor; assumption.
+        - do 2 constructor.   }
+    + apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+        as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Alloc in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].
+      { exists x. exists  (update_H (r, l, v) heap2'); repeat split.
+        -  unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            rewrite H1. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H1. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor; assumption.
+        - do 2 constructor.  }            
+    + { exists (update_H (r, l, v) heapa). exists (update_H (r, l, v) heap2'); repeat split; try (do 2  constructor). 
+        unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l']. 
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite HEqual. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. }
+       }  
+  - dependent destruction HStep2. 
+    + eapply Par_Step_Read_Alloc; eauto || econstructor; assumption.
+    + { exists heap1'; exists heap2'; repeat split.
+        - assumption.
+        - constructor. constructor. unfold H.Equal in HEqual. rewrite <- H0. apply HEqual.
+        - constructor. constructor. unfold H.Equal in HEqual. rewrite <- HEqual. assumption.
+      }
+    + eapply Par_Step_Read_Write; eauto || econstructor; assumption.
+    + { apply HMapP.Equal_sym in HEqual.
+        edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+        as [heap2'' [HEqual' HStep2']].
+        exists heap2''. exists heap2'. repeat split.
+        - apply HMapP.Equal_sym. assumption.
+        - do 2 constructor. assumption.
+        - do 2 constructor. 
+          replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+            in HDisj by (simpl; reflexivity).
+          apply Disjointness_app_app_and_l in HDisj. destruct HDisj as [HD1 ?].
+          replace (phi_as_list (Phi_Elem (DA_Read r l v))) with (DA_Read r l v :: nil)
+            in HD1 by (simpl; reflexivity).
+          unfold H.Equal in HEqual'. rewrite HEqual'.
+          eapply Read_Preserved.
+          eapply H.
+          eapply HD1.
+          eapply HStep2'. }
+    + { apply HMapP.Equal_sym in HEqual.
+        edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+          as [heap2'' [HEqual' HStep2']]. clear HStep2.
+        exists heap2''. exists heap2'. repeat split.
+        - apply HMapP.Equal_sym. assumption.
+        - do 2 constructor; assumption.
+        - do 2 constructor.
+          replace (phi_as_list (Phi_Seq Phi_Nil phi0)) with (phi_as_list Phi_Nil ++ phi_as_list phi0)
+            in HDisj by (simpl; reflexivity).
+          apply Disjointness_app_app_and_l in HDisj. destruct HDisj as [? HD1].
+          replace (phi_as_list (Phi_Elem (DA_Read r l v))) with (DA_Read r l v :: nil)
+            in HD1 by (simpl; reflexivity).
+          unfold H.Equal in HEqual'. rewrite HEqual'. eapply Read_Preserved.
+          eapply H.
+          eapply HD1.
+          eapply HStep2'. }
+    + { exists heap1'. exists heap2'. repeat split; auto.
+        - do 2 constructor.
+        - do 2 constructor.
+          rewrite <- H. unfold H.Equal in HEqual. symmetry; apply HEqual.
+      }
+    + { apply HMapP.Equal_sym in HEqual.
+        edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+           as [heap2'' [HEqual' HStep2']]. clear HStep2.
+        exists heap2''. exists heap2'. repeat split.
+        - apply HMapP.Equal_sym. assumption.
+        - do 2 constructor; assumption.
+        - do 2 constructor.
+          replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+            in HDisj by (simpl; reflexivity).
+          apply Disjointness_app_app_and_l in HDisj. destruct HDisj as [HD1 ?].
+          replace (phi_as_list (Phi_Elem (DA_Read r l v))) with (DA_Read r l v :: nil)
+            in HD1 by (simpl; reflexivity).
+          unfold H.Equal in HEqual'. rewrite HEqual'.  eapply Read_Preserved.
+          eapply H.
+          eapply HD1.
+          eapply HStep2' . }
+    + { apply HMapP.Equal_sym in HEqual.
+        edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+          as [heap2'' [HEqual' HStep2']]. clear HStep2.
+        exists heap2''. exists heap2'. repeat split.
+        - apply HMapP.Equal_sym. assumption.
+        - do 2 constructor; assumption.
+        - do 2 constructor.
+          replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+            in HDisj by (simpl; reflexivity).
+          apply Disjointness_app_app_and_l in HDisj. destruct HDisj as [? HD1].
+          replace (phi_as_list (Phi_Elem (DA_Read r l v))) with (DA_Read r l v :: nil)
+            in HD1 by (simpl; reflexivity).
+          unfold H.Equal in HEqual'. rewrite HEqual'. eapply Read_Preserved.
+          eapply H.
+          eapply HD1.
+          eapply HStep2'. }
+    + { exists heap1'. exists heap2'. repeat split; auto.
+        - do 2 constructor.
+        - do 2 constructor.
+          rewrite <- H. unfold H.Equal in HEqual. symmetry; apply HEqual.
+      }
+  - dependent destruction HStep2. 
+    + eapply Par_Step_Write_Alloc; eauto || econstructor; assumption.
+    + eapply Par_Step_Write_Read; eauto || econstructor; assumption.
+    + eapply Par_Step_Write_Write; eauto || econstructor; assumption.
+    + apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+        as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      eapply monotonic_heap_updates in H; eauto.
+      replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Write in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].   
+      { exists x. exists (update_H (r, l, v) heap2'); repeat split.
+        -  unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            rewrite H2. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H2. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor. assumption.
+        - constructor. constructor.  apply HMapP.Equal_Equiv in HEqual'. inversion HEqual'. apply H4. assumption. 
+      }
+    + apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+         as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      eapply monotonic_heap_updates in H; eauto.
+      replace (phi_as_list (Phi_Seq Phi_Nil phi0)) with (phi_as_list Phi_Nil ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Write in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].
+      { exists x.  exists (update_H (r, l, v) heap2'); repeat split.
+        -  unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            rewrite H2. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H2. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor; assumption.
+        - constructor. constructor.  apply HMapP.Equal_Equiv in HEqual'. inversion HEqual'. apply H4. assumption. }
+    + { exists (update_H (r, l, v) heapa). exists (update_H (r, l, v) heap2'); repeat split.
+        -  unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite HEqual. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - constructor. constructor.
+        - do 2 constructor. apply HMapP.Equal_Equiv in HEqual. inversion HEqual. apply H0. assumption.  }
+    + apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+        as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      eapply monotonic_heap_updates in H; eauto.
+      replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Write in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].
+      { exists x. exists (update_H (r, l, v) heap2'); repeat split.
+        -  unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+             rewrite H2. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H2. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor; assumption.
+        - constructor. constructor. apply HMapP.Equal_Equiv in HEqual'. inversion HEqual'. apply H4. assumption. }
+    +  apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+         as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      eapply monotonic_heap_updates in H; eauto.
+      replace (phi_as_list (Phi_Seq phi1 phi0)) with (phi_as_list phi1 ++ phi_as_list phi0)
+        in HDisj by (simpl; reflexivity).
+      apply Disjointness_app_app_and_l in HDisj. destruct HDisj.
+      eapply Disjointness_Preserves_Update_Write in HStep2'; eauto.
+      destruct HStep2' as [? [? ?]].
+      { exists x. exists (update_H (r, l, v) heap2'); repeat split.
+        - unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+             rewrite H2. do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite H2. rewrite HEqual'. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - do 2 constructor; assumption.
+        - constructor. constructor. apply HMapP.Equal_Equiv in HEqual'. inversion HEqual'. apply H4. assumption.  }            
+    +  { exists (update_H (r, l, v) heapa). exists (update_H (r, l, v) heap2'); repeat split.
+        -  unfold H.Equal in *; unfold update_H in *; simpl in *.
+          intros [r' l'].
+          destruct (RegionVars.eq_dec (r', l') (r, l)).
+          * inversion_clear e; simpl in *; subst.
+            do 2 rewrite H_same_key. reflexivity.
+          * unfold RegionVars.eq in *; simpl in *.
+            rewrite HMapP.add_neq_o. 
+            { rewrite HEqual. rewrite HMapP.add_neq_o; [reflexivity | contradict n; intuition]. }
+            { simpl. contradict n. intuition. } 
+        - constructor. constructor.
+        - do 2 constructor. apply HMapP.Equal_Equiv in HEqual. inversion HEqual. apply H0. assumption.  }
+  - inversion HDet1; subst. clear H2.
+    edestruct IHHStep1 with (phi2:=phi1)  as [heapA [heapB [? [? ?]]]]; eauto.
+    + simpl in HDisj. apply Disjointness_app_app_and_r in HDisj. destruct HDisj. assumption.
+    + simpl in HConf. inversion HDet1.
+      apply Conflictness_app_and_r in HConf; [ destruct HConf  | | | ]; assumption.
+    + exists heapA. exists heapB. repeat split.
+      * assumption.
+      * inversion H0; subst.
+        { apply Phi_Heap_Step_Progress in HStep2. contradiction. }
+        { constructor. assumption. }
+      * inversion H2; subst.
+        { constructor. constructor. assumption. }
+        { apply Phi_Heap_Step_Progress in H2. contradiction. }
+  - inversion HDet1; subst. clear H1.
+    edestruct IHHStep1 with (phi2:=phi0) as [heapA [heapB [? [? ?]]]]; eauto.
+    + exists heapA. exists heapB. repeat split.
+      * assumption.
+      * inversion H0; subst.
+        { apply Phi_Heap_Step_Progress in HStep2. contradiction. }
+        { constructor. assumption. }
+      * inversion H1; subst.
+        { constructor. constructor. assumption. }
+        { apply Phi_Heap_Step_Progress in H1. contradiction. }
+  -  apply HMapP.Equal_sym in HEqual.
+     edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+       as [heap2'' [HEqual' HStep2']]. clear HStep2.
+     exists heap2''. exists heap2'. repeat split.
+     * apply HMapP.Equal_sym. assumption.
+     * constructor; assumption.
+     * constructor; constructor.
+  - inversion HDet1; subst. clear H2.
+    edestruct IHHStep1 with (phi2:=phi1) as [heapA [heapB [? [? ?]]]]; eauto.
+    + simpl in HDisj. apply Disjointness_app_app_and_r in HDisj. destruct HDisj. assumption.
+    + simpl in HConf. inversion HDet1.
+      apply Conflictness_app_and_r in HConf; [ destruct HConf  | | | ]; assumption.
+    + exists heapA. exists heapB. repeat split.
+      * assumption.
+      * inversion H0; subst.
+        { apply Phi_Heap_Step_Progress in HStep2. contradiction. }
+        { constructor. assumption. }
+      * inversion H2; subst.
+        { constructor. constructor. assumption. }
+        { apply Phi_Heap_Step_Progress in H2. contradiction. }
+  - inversion HDet1; subst. 
+    edestruct IHHStep1 with (phi2:=phi1) as [heapA [heapB [? [? ?]]]]; eauto.
+    + simpl in HDisj. apply Disjointness_app_app_and_r in HDisj. destruct HDisj. assumption.
+    + simpl in HConf. inversion HDet1.
+      apply Conflictness_app_and_r in HConf; [ destruct HConf  | | | ]; assumption.
+    + exists heapA. exists heapB. repeat split.
+      * assumption.
+      * inversion H0; subst.
+        { apply Phi_Heap_Step_Progress in HStep2. contradiction. }
+        { constructor. assumption. }
+      * inversion H4; subst.
+        { constructor. constructor. assumption. }
+        { apply Phi_Heap_Step_Progress in H4. contradiction. }
+   -  apply HMapP.Equal_sym in HEqual.
+      edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ HStep2 HEqual)
+        as [heap2'' [HEqual' HStep2']]. clear HStep2.
+      exists heap2''. exists heap2'. repeat split.
+     * apply HMapP.Equal_sym. assumption. 
+     * constructor; assumption.
+     * constructor; constructor.
+Qed.
+
+
+
 Lemma Diamond_Step :
   forall phi0 phi1 phi2 heap0 heap1 heap2,
     Det_Trace phi0 ->
@@ -1047,6 +1613,87 @@ Proof.
     - inversion H0.
     - inversion H0.
     - exists Phi_Nil. exists heap2. repeat eexists; repeat econstructor.
+Qed.
+
+Lemma Diamond_Step_new :
+  forall phi0 phi1 phi2 heapa heapb heap1 heap2,
+    Det_Trace phi0 ->
+    H.Equal heapa heapb ->
+    (phi0, heapa) ===> (phi1, heap1) ->
+    (phi0, heapb) ===> (phi2, heap2) ->
+    exists phi3, exists heap3, exists heap4, exists n13, exists n23,
+      H.Equal heap3 heap4 /\                                                     
+      (phi1, heap1) =a=>* (phi3, heap3, n13) /\
+      (phi2, heap2) =a=>* (phi3, heap4, n23) /\
+      (n13 <= 1) /\ (n23 <= 1).
+Proof.
+  induction phi0; intros phi1 phi2 heapa heapb heap1 heap2 HDet HEqual H0_1 H0_2.
+  + inversion H0_1.
+  + destruct d; inversion H0_1; subst; inversion H0_2; subst; exists Phi_Nil.
+    - exists (update_H (r, n, v) heapa); exists (update_H (r, n, v) heapb).
+      repeat eexists; repeat econstructor.
+      unfold H.Equal in *; unfold update_H in *; simpl in *.
+      intros [r' n'].
+      destruct (RegionVars.eq_dec (r', n') (r, n)).
+        * inversion_clear e; simpl in *; subst.
+          do 2 rewrite H_same_key_1. reflexivity.
+        * unfold RegionVars.eq in *; simpl in *.
+          rewrite HMapP.add_neq_o by (contradict n0; intuition).
+          rewrite HMapP.add_neq_o by (contradict n0; intuition).
+          apply HEqual.
+    - exists heap1; exists heap2; repeat eexists; repeat econstructor.
+      assumption.
+    - exists (update_H (r, n, v) heapa); exists (update_H (r, n, v) heapb).
+      repeat eexists; repeat econstructor.
+      unfold H.Equal in *; unfold update_H in *; simpl in *.
+      intros [r' n'].
+      destruct (RegionVars.eq_dec (r', n') (r, n)).
+        * inversion_clear e; simpl in *; subst.
+          do 2 rewrite H_same_key_1. reflexivity.
+        * unfold RegionVars.eq in *; simpl in *.
+          rewrite HMapP.add_neq_o by (contradict n0; intuition).
+          rewrite HMapP.add_neq_o by (contradict n0; intuition).
+          apply HEqual.
+  + inversion H0_1; subst; inversion H0_2; subst.
+  - inversion HDet; subst.
+      edestruct (IHphi0_1 phi1' phi1'0) as [phi3 [heap3 [heap4 [n13 [n23 [? [? [? ?]]]]]]]]; try eassumption.
+      exists (Phi_Par phi3 phi0_2). exists heap3. exists heap4.  exists n13. exists n23; repeat split;
+         try (solve [assumption | destruct H7; eassumption | eapply Par_Left_Pres; assumption]) .
+    - inversion HDet; subst. destruct H5.
+      edestruct (Par_Step_Equal_new phi0_1 phi0_2) as [heap3 [heap4 [? [? ?]]]]; try eassumption.
+      exists (Phi_Par phi1' phi2'). exists heap3. exists heap4.
+      repeat eexists; try (eapply PHT_Step; eassumption); repeat constructor. assumption.
+    - inversion H0.
+    - inversion HDet; subst. destruct H5.
+      assert (HEqual': H.Equal heapb heapa) by (eauto using HMapP.Equal_sym).
+      edestruct (Par_Step_Equal_new phi0_1 phi0_2 phi1' phi2') as [heap3 [heap4 [? [? ?]]]]; try eassumption.
+      exists (Phi_Par phi1' phi2'). exists heap4. exists heap3. 
+      repeat eexists; try (eapply PHT_Step; eassumption); repeat constructor.
+      apply HMapP.Equal_sym; assumption.
+    - inversion HDet; subst.
+      edestruct (IHphi0_2 phi2' phi2'0) as [phi3 [heap3 [heap4 [n13 [n23 [? [? [? ?]]]]]]]]; try eassumption.
+      exists (Phi_Par phi0_1 phi3). exists heap3. exists heap4. exists n13. exists n23; repeat split;
+        try (solve [assumption | destruct H7; eassumption | eapply Par_Right_Pres; assumption]) .
+    - inversion H0.
+    - inversion H0.
+    - inversion H0.
+    - exists Phi_Nil. exists heap1. exists heap2. repeat eexists; repeat econstructor; assumption.
+  + inversion H0_1; subst; inversion H0_2; subst.
+    - inversion HDet; subst.
+      edestruct (IHphi0_1 phi1' phi1'0) as [phi3 [heap3 [heap4 [n13 [n23 [? [? [? ?]]]]]]]]; try eassumption.
+      exists (Phi_Seq phi3 phi0_2). exists heap3. exists heap4. exists n13. exists n23. repeat split;
+        try (solve [assumption | destruct H6; eassumption | eapply Seq_Left_Pres; assumption]) .
+    - inversion H0.
+    - inversion H0.
+    - inversion H1.
+    - inversion HDet; subst.
+      edestruct (IHphi0_2 phi2' phi2'0) as [phi3 [heap3 [heap4 [n13 [n23 [? [? [? ?]]]]]]]]; try eassumption.
+      exists (Phi_Seq Phi_Nil phi3). exists heap3. exists heap4. exists n13. exists n23; repeat split;
+        try (solve [assumption | destruct H6; eassumption | eapply Seq_Right_Pres; assumption]) .
+    - inversion H0.
+    - inversion H0.
+    - inversion H0.
+    - exists Phi_Nil. exists heap1. exists heap2. repeat eexists; repeat econstructor; assumption.
 Qed.
 
 Theorem Phi_Heap_Step__Preserves_DAs :
@@ -1290,77 +1937,7 @@ Proof.
    - apply IHHSteps2; apply IHHSteps1; assumption.
 Qed.
 
-Lemma Aux_Aux_Step_Ext_Heap :
-forall phi heapA heapB phi' heapA',
-   (phi, heapA) ===> (phi', heapA') ->
-   H.Equal heapA heapB ->
-   exists heapB',
-     H.Equal heapA' heapB' /\
-     (phi, heapB) ===> (phi', heapB').
-Proof.
-  intros phi heapA heapB phi' heapA' HStep.
-  generalize dependent heapB.
-  dependent induction HStep; intros heapB HEqual.
-  - { exists (update_H (r, l, v) heapB). split.
-      - unfold H.Equal in *; unfold update_H in *; simpl in *.
-        intros [r' l'].
-        destruct (RegionVars.eq_dec (r', l') (r, l)).
-        * inversion_clear e; simpl in *; subst.
-          do 2 rewrite H_same_key_1. reflexivity.
-        * unfold RegionVars.eq in *; simpl in *.
-          rewrite HMapP.add_neq_o by (contradict n; intuition).
-          rewrite HMapP.add_neq_o by (contradict n; intuition).
-          apply HEqual.
-      - constructor. }
-  - { exists heapB. split.
-      - assumption.
-      - constructor.
-        unfold find_H in *. unfold H.Equal in HEqual.
-        rewrite <- H. symmetry. apply HEqual. }
-  - { exists (update_H (r, l, v) heapB). split.
-      - unfold H.Equal in *; unfold update_H in *; simpl in *.
-        intros [r' l'].
-        destruct (RegionVars.eq_dec (r', l') (r, l)).
-        * inversion_clear e; simpl in *; subst.
-          do 2 rewrite H_same_key_1. reflexivity.
-        * unfold RegionVars.eq in *; simpl in *.
-          rewrite HMapP.add_neq_o by (contradict n; intuition).
-          rewrite HMapP.add_neq_o by (contradict n; intuition).
-          apply HEqual.
-      - constructor.
-        eapply Heap.HMapP.In_m; eauto using HMapP.Equal_sym. }
-  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
-    exists heapB'; split; [assumption | constructor; auto].
-  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
-    exists heapB'; split; [assumption | constructor; auto].
-  - exists heapB; split; [assumption | constructor].
-  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
-    exists heapB'; split; [assumption | constructor; auto].
-  - destruct (IHHStep heapB HEqual) as [heapB' [? ?]].
-    exists heapB'; split; [assumption | constructor; auto].
-  - exists heapB; split; [assumption | constructor].
-Qed.
 
-Lemma Aux_Step_Ext_Heap :
-forall phi heapA heapB phi' heapA' n',
-   (phi, heapA) =a=>* (phi', heapA', n') ->
-   H.Equal heapA heapB ->
-   exists heapB',
-     H.Equal heapA' heapB' /\
-     (phi, heapB) =a=>* (phi', heapB', n').
-Proof.
-  intros  phi heapA heapB phi' heapA' n' H1 H2 .  
-  generalize dependent heapB. 
-  dependent induction H1; intros.
-  - { exists heapB. intuition. constructor. }
-  - edestruct Aux_Aux_Step_Ext_Heap as [heapB' [? ?]]; eauto.
-    exists heapB'; split; [assumption | constructor; assumption].
-  - edestruct (IHPhi_Heap_StepsAux1 heapB H2) as [heap1 [? ?]].
-    edestruct (IHPhi_Heap_StepsAux2 heap1 H) as [heap2 [? ?]].
-    exists heap2. intuition.
-    replace (S (n'0 + n'')) with (1 + n'0 + n'') by (simpl; reflexivity).
-    econstructor. eassumption. assumption.
-Qed.
     
 Theorem Diamond_Walk_Aux : 
   forall n n1 n2,
@@ -1441,6 +2018,97 @@ Proof.
         { eapply PHT_Trans. eassumption. assumption. }
 Qed.
 
+Theorem Diamond_Walk_Aux_new : 
+  forall n n1 n2,
+    n = n1 + n2 ->
+    forall phi0 phi1 phi2 heapa heapb heap1 heap2,
+    H.Equal heapa heapb ->
+    forall (H0_1: (phi0, heapa) =a=>* (phi1, heap1, n1)),
+    forall (H0_2: (phi0, heapb) =a=>* (phi2, heap2, n2)),
+      Det_Trace phi0 ->
+      exists phi3, exists heap3, exists heap4, exists n13, exists n23,
+        H.Equal heap3 heap4 /\
+        (phi1, heap1) =a=>* (phi3, heap3, n13) /\
+        (phi2, heap2) =a=>* (phi3, heap4, n23) /\
+        (n13 <= n2) /\ (n23 <= n1).
+Proof.
+  induction n using Wf_nat.lt_wf_ind.
+  intros n1 n2 HSum.
+  intros phi0 phi1 phi2 heapa heapb heap1 heap2 HEqual H0_1 H0_2 HDet. 
+  dependent destruction H0_1.
+  - assert (HEqual' : H.Equal heapb heap1) by (eauto using HMapP.Equal_sym).
+    edestruct (Aux_Step_Ext_Heap _ _ _ _ _ _ H0_2 HEqual')
+     as [heap2' [HEqual'' ?]].
+    exists phi2; exists heap2'; exists heap2; exists n2; exists 0.
+    repeat split; try (solve [omega]).
+    + eauto using HMapP.Equal_sym.  
+    + assumption. (* phi1 walks into phi2 in n2 steps *)
+    + apply PHT_Refl.  (* phi2 takes 0 steps *)
+  - rename H0 into H0_1.  
+    dependent destruction H0_2.
+    + edestruct (Aux_Aux_Step_Ext_Heap _ _ _ _ _ H0_1 HEqual)
+       as [heap1' [HEqual' H0_1']].
+      exists phi1. exists heap1. exists heap1'. exists 0. exists 1.
+      repeat split; try (solve [omega]).
+      * assumption.
+      * apply PHT_Refl. (* phi1 takes 0 steps *)
+      * apply PHT_Step; assumption. (* phi2 walks into phi1 in 1 step *)
+    + rename H0 into H0_2.
+      destruct (Diamond_Step_new phi0 phi1 phi2 heapa heapb heap1 heap2 HDet HEqual H0_1 H0_2)
+        as [phi3 [heap3 [heap4 [n13 [n23 [Heq [H1_3 [H2_3 [? ?]]]]]]]]].
+      exists phi3. exists heap3. exists heap4. exists n13. exists n23. (* n13 and n23 are the remaining steps *)
+      repeat split;  try (solve [omega]). 
+      * assumption.
+      * assumption. (* context provided by Diamond_Step *)
+      * assumption. (* context provided by Diamond_Step *)
+    + rename phi' into phi2'. rename heap' into heap2'. 
+      rename H0_2_1 into H0_2'. rename H0_2_2 into H2'_2. 
+      edestruct (H (1 + n')) as [phi3 [heap3 [heap4 [n1_3 [n2'_3 [Heq [H1_3 [H2'_3 [? ?]]]]]]]]]. (* transitivity on phi2 *)
+      * omega. (* phi2 took n' intermediate steps *)
+      * reflexivity.
+      * eassumption.
+      * eapply PHT_Step; eassumption.  (* phi1 steps 1 *)
+      * eassumption. (* by induction *)
+      * eassumption. (* by induction *)  
+      * { edestruct (H (n2'_3 + n'')) as [phi4 [heap5 [heap6 [n3_4 [n2_4 [Heq' [H3_4 [H2_4 [? ?]]]]]]]]].
+          - omega.  (* phi2 took n'' intermediate steps *)
+          - reflexivity.
+          - apply HMapP.Equal_refl.
+          - eassumption. (* by induction *)
+          - eassumption. (* by induction *)
+          - eapply Det_Pres; eassumption.
+          - apply Aux_Step_Ext_Heap with (heapB:=heap3) in H3_4; [ | apply HMapP.Equal_sym; assumption].
+            destruct H3_4 as [heap5' [? ?]].
+            exists phi4. exists heap5'. exists heap6. exists (1 + n1_3 + n3_4). exists n2_4.
+            repeat split; try (solve [omega]).
+            + eapply HMapP.Equal_trans in Heq'; eauto. apply HMapP.Equal_sym; assumption.  
+            + eapply PHT_Trans. eassumption. assumption.
+            + assumption. }
+  - rename phi' into phi1'. rename heap' into heap1'.
+    rename H0_1_1 into H0_1'. rename H0_1_2 into H1'_1.
+    edestruct (H (n' + n2)) as [phi3 [heap3 [heap4 [n1'_3 [n2_3 [Heq [H1'_3 [H2_3 [? ?]]]]]]]]].
+    + omega.  (* phi1 took n' intermediate steps *)
+    + reflexivity.
+    + eassumption.
+    + eassumption.
+    + eassumption.
+    + assumption.
+    + edestruct (H (n'' + n1'_3)) as [phi4 [heap5 [heap6 [n1_4 [n3_4 [Heq' [H1_4 [H3_4 [? ?]]]]]]]]].
+      * omega. (* phi1 took the remaining n'' intermediate steps *)
+      * reflexivity. 
+      * apply HMapP.Equal_refl.
+      * eassumption.
+      * eassumption.
+      * eapply Det_Pres; eassumption.
+      * apply Aux_Step_Ext_Heap with (heapB:=heap4) in H3_4; [ |assumption].
+        destruct H3_4 as [heap6' [? ?]]. 
+        exists phi4. exists heap5. exists heap6'. exists n1_4. exists (1 + n2_3 + n3_4).
+        repeat split;  try (solve [omega]).
+        { eapply HMapP.Equal_trans in H4; eauto. }
+        { assumption. }
+        { eapply PHT_Trans. eassumption. assumption. }
+Qed.
+
 Theorem Diamond_Walk : 
   forall phi0 phi1 phi2 heap0 heap1 heap2,
     (phi0, heap0) ==>* (phi1, heap1) ->
@@ -1456,6 +2124,25 @@ Proof.
   destruct H0_1 as [n0_1 H0_1].
   destruct H0_2 as [n0_2 H0_2].
   edestruct (Diamond_Walk_Aux (n0_1 + n0_2) n0_1 n0_2) as [phi3 [heap3 [heap4 [n1_3 [n2_3 [Heq [H1_3 [H2_3 [? ?]]]]]]]]]; eauto.
+  exists phi3. exists heap3. exists heap4. repeat split;[ assumption | |]; eexists; eassumption.
+Qed.
+
+Theorem Diamond_Walk_new : 
+  forall phi0 phi1 phi2 heapa heapb heap1 heap2,
+    H.Equal heapa heapb ->
+    (phi0, heapa) ==>* (phi1, heap1) ->
+    (phi0, heapb) ==>* (phi2, heap2) ->
+    Det_Trace phi0 ->
+    exists phi3, exists heap3, exists heap4,
+      H.Equal heap3 heap4 /\                           
+      (phi1, heap1) ==>* (phi3, heap3) /\
+      (phi2, heap2) ==>* (phi3, heap4).
+Proof.
+  intros phi0 phi1 phi2 heapa heapb heap1 heap2 HEqual H0_1 H0_2 HDet.
+  unfold Phi_Heap_Steps in *.
+  destruct H0_1 as [n0_1 H0_1].
+  destruct H0_2 as [n0_2 H0_2].
+  edestruct (Diamond_Walk_Aux_new (n0_1 + n0_2) n0_1 n0_2) as [phi3 [heap3 [heap4 [n1_3 [n2_3 [Heq [H1_3 [H2_3 [? ?]]]]]]]]]; eauto.
   exists phi3. exists heap3. exists heap4. repeat split;[ assumption | |]; eexists; eassumption.
 Qed.
 
@@ -1482,6 +2169,22 @@ Theorem Diamond_Term_Walk :
 Proof.
   intros phi0 heap0 heap1 heap2 HDet HStep1 HStep2.
   edestruct (Diamond_Walk phi0 Phi_Nil Phi_Nil heap0 heap1 heap2) as [phi3 [heap3 [heap4 [Heq [H1 H2]]]]]; try eassumption.
+  destruct H1 as [n1 H1]. destruct H2 as [n2 H2].
+  edestruct (Term_Walk_Idemp heap1 phi3 heap3 n1) as [? ?]; try eassumption.
+  edestruct (Term_Walk_Idemp heap2 phi3 heap4 n2) as [? ?]; try eassumption.
+  subst. assumption.
+Qed.
+
+Theorem Diamond_Term_Walk_new : 
+  forall phi0 heapa heapb heap1 heap2,
+    H.Equal heapa heapb ->
+    (phi0, heapa) ==>* (Phi_Nil, heap1) ->
+    (phi0, heapb) ==>* (Phi_Nil, heap2) ->
+    Det_Trace phi0 ->
+    H.Equal heap1 heap2.
+Proof.
+  intros phi0 heapa heapb heap1 heap2 HEqual HStep1 HStep2 HDet.
+  edestruct (Diamond_Walk_new phi0 Phi_Nil Phi_Nil heapa heapb heap1 heap2) as [phi3 [heap3 [heap4 [Heq [H1 H2]]]]]; try eassumption.
   destruct H1 as [n1 H1]. destruct H2 as [n2 H2].
   edestruct (Term_Walk_Idemp heap1 phi3 heap3 n1) as [? ?]; try eassumption.
   edestruct (Term_Walk_Idemp heap2 phi3 heap4 n2) as [? ?]; try eassumption.
@@ -2012,6 +2715,24 @@ Proof.
   eapply Det_trace_from_theta; eauto.
 Qed.
 
+Lemma unique_heap_new :
+  forall (heapa heapb heap1 heap2: Heap) (acts_mu1 acts_mu2: Phi) (theta1 theta2 : Theta),
+    acts_mu1 ⊑ theta1 ->
+    acts_mu2 ⊑ theta2 ->
+    Disjointness theta1 theta2 /\ not (Conflictness theta1 theta2) ->
+    Det_Trace acts_mu1 ->
+    Det_Trace acts_mu2 ->
+    H.Equal heapa heapb ->
+    (Phi_Par acts_mu1 acts_mu2, heapa) ==>* (Phi_Nil, heap1) ->
+    (Phi_Par acts_mu1 acts_mu2, heapb) ==>* (Phi_Nil, heap2) ->
+    H.Equal heap1 heap2.
+Proof.
+  intros.
+  eapply Diamond_Term_Walk_new; eauto.
+  eapply Det_trace_from_theta; eauto.
+Qed.
+
+
 Theorem Dynamic_DetTrace :
   forall heap rgns env exp heap' val' phi',
     (heap, rgns, env, exp) ⇓ (heap', val', phi') ->
@@ -2027,6 +2748,55 @@ Proof.
     + eapply IHHStep4; reflexivity.
 Qed.
 
+Lemma Equal_heap_equal:
+  forall (heap1 heap2 : Heap),
+    heap1 = heap2 -> H.Equal heap1 heap2.
+Proof.
+  intros heap1 heap2 H. subst. apply HMapP.Equal_refl.
+Qed.
+
+Theorem DynamicDeterminism_ext : 
+  forall heap_a heap_b rgns env exp heap1 heap2 val1 val2 acts1 acts2,
+    H.Equal heap_a heap_b ->
+    (heap_a, rgns, env, exp) ⇓ (heap1, val1, acts1) ->
+    (heap_b, rgns, env, exp) ⇓ (heap2, val2, acts2) ->
+    H.Equal heap1 heap2 /\ val1 = val2 /\ acts1 = acts2.
+Proof.
+  intros heap_a heap_b rgns env exp heap1 heap2 val1 val2 acts1 acts2 Heq Dyn1. 
+  generalize dependent acts2; generalize dependent val2; generalize dependent heap2. generalize dependent heap_b;
+  dependent induction Dyn1; intros heap_b Heq heap2 val2 acts2 Dyn2; inversion Dyn2; subst;
+  try (solve [intuition]).
+  - intuition. rewrite H in H1. inversion H1; subst. reflexivity.
+  - assert ( RH1 : H.Equal fheap fheap0 /\ Cls (env', rho', Mu f x ec' ee') = Cls (env'0, rho'0, Mu f0 x0 ec'0 ee'0) /\ facts = facts0 )
+      by (eapply IHDyn1_1; eauto).
+    destruct RH1 as [h_eq_1 [v_eq_1 a_eq_1]]. inversion v_eq_1. subst.
+    assert ( RH2 : H.Equal aheap aheap0 /\ v = v0 /\ aacts = aacts0) by (eapply IHDyn1_2; eauto).
+    destruct RH2 as [h_eq_2 [v_eq_2 a_eq_2]]; subst. 
+    
+    assert ( RH3 : H.Equal heap1 heap2 /\ val1 = val2 /\ bacts = bacts0).
+    eapply IHDyn1_3; eauto. 
+    destruct RH3 as [h_eq_3 [v_eq_3 a_eq_3]]; subst.
+    auto.
+  - admit.
+  - admit.
+  - assert (HR1 : H.Equal heap_a heap_b /\ Eff theta1 = Eff theta0 /\ acts_eff1 = acts_eff0) by (eapply IHDyn1_1; eauto).
+    destruct HR1 as [h_eq_1 [v_eq_1 a_eq_1]]. inversion v_eq_1. subst.
+    assert (HR2 : H.Equal heap_a heap_b /\ Eff theta2 = Eff theta3 /\ acts_eff2 = acts_eff3) by (eapply IHDyn1_2; eauto).
+    destruct HR2 as [h_eq_2 [v_eq_2 a_eq_2]]. inversion v_eq_2. subst.
+    assert (HR3 : H.Equal heap_mu1 heap_mu0 /\ Num v1 = Num v0 /\ acts_mu1 = acts_mu0)  by (eapply IHDyn1_3; eauto). 
+    inversion HR3 as [h_eq_3 [v_eq_3 a_eq_3]]. inversion v_eq_3. 
+    assert (HR4 : H.Equal heap_mu2 heap_mu3 /\ Num v2 = Num v3 /\ acts_mu2 = acts_mu3)  by (eapply IHDyn1_4; eauto). 
+    inversion HR4 as [h_eq_4 [v_eq_4 a_eq_4]]. inversion v_eq_4. subst.
+    intuition. eapply unique_heap_new with (heapa := heap_a) (heapb := heap_b) (theta1:=theta0) (theta2:=theta3); eauto.
+    + assert (Det_Trace (Phi_Par acts_mu0 acts_mu3))
+                  by (eapply Det_trace_from_theta; eauto; [ apply Dynamic_DetTrace in Dyn1_3 | apply Dynamic_DetTrace in Dyn1_4]; assumption);
+      now inversion H11.
+    + assert (Det_Trace (Phi_Par acts_mu0 acts_mu3))
+                  by (eapply Det_trace_from_theta; eauto; [ apply Dynamic_DetTrace in Dyn1_3 | apply Dynamic_DetTrace in Dyn1_4]; assumption);
+      now inversion H11.
+  - 
+Admitted.
+    
 Theorem DynamicDeterminism :
   forall heap rgns env exp heap1 heap2 val1 val2 acts1 acts2,
     (heap, rgns, env, exp) ⇓ (heap1, val1, acts1) ->
@@ -2039,7 +2809,7 @@ Proof.
   try reflexivity.   
   - rewrite H in H1. inversion H1. reflexivity.
   -  assert ( RH1 : (fheap, Cls (env', rho', Mu f x ec' ee'), facts) = (fheap0, Cls (env'0, rho'0, Mu f0 x0 ec'0 ee'0), facts0) )
-      by (eapply IHDyn1_1; [ reflexivity | assumption]); inversion RH1; subst.
+      by (eapply IHDyn1_1; [ reflexivity | assumption]). inversion RH1. subst.
     assert ( RH2 : (aheap, v, aacts) = (aheap0, v0, aacts0) ) by (apply IHDyn1_2; assumption); inversion RH2; subst.
     assert ( RH3 :  (heap1, val1, bacts) = (heap2, val2, bacts0) ) by (eapply IHDyn1_3; [ reflexivity | reflexivity |  assumption]). 
     now inversion_clear RH3.
@@ -2123,3 +2893,5 @@ Proof.
     assert ( HR2 :  (heap2, Eff effb0, phib0) = (heap2, Eff effb, phib) ) by (apply IHDyn1_2; auto).
     inversion HR1; inversion HR2; now subst.
 Qed.
+
+
